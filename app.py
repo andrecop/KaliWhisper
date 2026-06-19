@@ -711,11 +711,11 @@ class WhisperApp:
         if self.transcribe_lang == "it":
             self.transcribe_lang = "en"
             self.lang_btn.configure(text="🇬🇧")
-            self._set_status("Lingua di trascrizione: Inglese")
+            self._set_status("Lingua: Inglese")
         else:
             self.transcribe_lang = "it"
             self.lang_btn.configure(text="🇮🇹")
-            self._set_status("Lingua di trascrizione: Italiano")
+            self._set_status("Lingua: Italiano")
 
     def _transcription_worker(self):
         while True:
