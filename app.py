@@ -390,7 +390,7 @@ class FlagDropdown(ctk.CTkToplevel):
             flag_lbl.bind("<Button-1>", on_click)
             flag_lbl.bind("<MouseWheel>", _on_mousewheel)
             
-            name_lbl = tk.Label(btn_frame, text=name, bg="#18181b", fg="#fafafa", font=("Segoe UI", 11), bd=0, highlightthickness=0, anchor="w")
+            name_lbl = tk.Label(btn_frame, text=name, bg="#18181b", fg="#fafafa", font=("Segoe UI", 9), bd=0, highlightthickness=0, anchor="w")
             name_lbl.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
             name_lbl.bind("<Enter>", on_enter)
             name_lbl.bind("<Leave>", on_leave)
