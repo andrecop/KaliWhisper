@@ -1530,8 +1530,7 @@ class WhisperApp:
             self.text_area.configure(state="normal" if not self.is_recording else "disabled")
             
             self._set_status("UI Language: English")
-        else:
-            self.ui_lang_btn.configure(image=self.img_it)
+        elif lang_code == "it":
             self.model_label.configure(text="Motore di Trascrizione:")
             self.dest_btn.configure(text="📂 Destinazione")
             self.device_label.configure(text="Ingresso Audio:")
@@ -1559,6 +1558,59 @@ class WhisperApp:
             self.text_area.configure(state="normal" if not self.is_recording else "disabled")
             
             self._set_status("Lingua UI: Italiano")
+        else:
+            def translate_ui_task():
+                try:
+                    from deep_translator import GoogleTranslator
+                    translator = GoogleTranslator(source="it", target=lang_code)
+                    
+                    model_lbl = translator.translate("Motore di Trascrizione:")
+                    dest_txt = translator.translate("Destinazione")
+                    device_lbl = translator.translate("Ingresso Audio:")
+                    text_lbl = translator.translate("Trascrizione")
+                    
+                    start_rec = translator.translate("Avvia Trascrizione")
+                    stop_rec = translator.translate("Ferma Trascrizione")
+                    
+                    start_play = translator.translate("Ascolta Trascrizione")
+                    stop_play = translator.translate("Ferma Ascolto")
+                    
+                    save_tx = translator.translate("Salva Trascrizione")
+                    save_aud = translator.translate("Salva Audio")
+                    save_all = translator.translate("Salva tutto e Chiudi al termine")
+                    
+                    continued_tag = translator.translate("continua").lower()
+                    started_tag = translator.translate("inizio").lower()
+                    
+                    def apply_translated_ui():
+                        self.model_label.configure(text=model_lbl)
+                        self.dest_btn.configure(text=f"📂 {dest_txt}")
+                        self.device_label.configure(text=device_lbl)
+                        self.text_label.configure(text=text_lbl)
+                        self.start_btn.configure(text=f"■ {stop_rec}" if self.is_recording else f"▶ {start_rec}")
+                        self.play_btn.configure(text=f"■ {stop_play}" if getattr(self, "is_playing", False) else f"🔊 {start_play}")
+                        self.save_btn.configure(text=f"💾 {save_tx}")
+                        self.save_audio_btn.configure(text=f"🎙️ {save_aud}")
+                        self.save_and_close_btn.configure(text=f"💾 {save_all}")
+                        
+                        self.text_area.configure(state="normal")
+                        content = self.text_area.get("1.0", "end")
+                        import re
+                        new_content = content
+                        new_content = re.sub(r"------- (continua|continued) ", f"------- {continued_tag} ", new_content)
+                        new_content = re.sub(r"------- (inizio|started) ", f"------- {started_tag} ", new_content)
+                        self.text_area.delete("1.0", "end")
+                        self.text_area.insert("1.0", new_content.strip())
+                        self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+                        
+                        lang_name = lang_item["name"].split(" (")[0] if lang_item else lang_code.upper()
+                        self._set_status(f"UI: {lang_name}")
+                        
+                    self.root.after(0, apply_translated_ui)
+                except Exception:
+                    self.root.after(0, lambda: self._update_ui_language("en"))
+                    
+            threading.Thread(target=translate_ui_task, daemon=True).start()
 
     def _transcription_worker(self):
         while True:
