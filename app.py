@@ -571,20 +571,31 @@ class WhisperApp:
 
     def _update_save_button_state(self):
         text_content = self.text_area.get("1.0", "end").strip()
-        if not self.is_recording and text_content:
+        is_transcribing = not self.transcription_queue.empty() or not self.audio_queue.empty()
+        
+        if not self.is_recording and not is_transcribing and text_content:
             self._set_btn_state(self.save_btn, "normal", "info")
         else:
             self._set_btn_state(self.save_btn, "disabled", "info")
-        if not self.is_recording and getattr(self, "all_recorded_audio", None):
+            
+        if not self.is_recording and not is_transcribing and getattr(self, "all_recorded_audio", None):
             self._set_btn_state(self.play_btn, "normal", "info")
             self._set_btn_state(self.save_audio_btn, "normal", "info")
         else:
             self._set_btn_state(self.play_btn, "disabled", "info")
             self._set_btn_state(self.save_audio_btn, "disabled", "info")
+            
         if not self.is_recording and (text_content or getattr(self, "all_recorded_audio", None)):
             self._set_btn_state(self.save_and_close_btn, "normal", "secondary")
         else:
             self._set_btn_state(self.save_and_close_btn, "disabled", "secondary")
+            
+        if not self.is_recording and not is_transcribing:
+            self.model_combo.configure(state="normal")
+            self.device_combo.configure(state="normal")
+        else:
+            self.model_combo.configure(state="disabled")
+            self.device_combo.configure(state="disabled")
 
     def _toggle_recording(self):
         if not self.is_recording:
@@ -642,7 +653,7 @@ class WhisperApp:
                         break
         else:
             self.start_btn.configure(text="▶ Avvia Trascrizione")
-            self._set_btn_state(self.start_btn, "disabled", "success")
+            self._set_btn_state(self.start_btn, "normal", "success")
             self._stop_recording_action()
 
     def _audio_monitor_worker(self):
@@ -844,9 +855,30 @@ class WhisperApp:
 
     def _reset_transcription(self):
         def do_reset():
+            if self.is_recording:
+                self._toggle_recording()
+            while not self.audio_queue.empty():
+                try:
+                    self.audio_queue.get_nowait()
+                    self.audio_queue.task_done()
+                except Exception:
+                    pass
+            while not self.transcription_queue.empty():
+                try:
+                    self.transcription_queue.get_nowait()
+                    self.transcription_queue.task_done()
+                except Exception:
+                    pass
+            for wav_path in list(self.temp_files):
+                try:
+                    if os.path.exists(wav_path):
+                        os.remove(wav_path)
+                except Exception:
+                    pass
+            self.temp_files.clear()
             self.text_area.configure(state="normal")
             self.text_area.delete("1.0", "end")
-            self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+            self.text_area.configure(state="normal")
             self.all_recorded_audio = []
             self._update_save_button_state()
             self._set_status("Trascrizione e registrazione resettate.")
@@ -1075,6 +1107,7 @@ class WhisperApp:
         self._on_closing_forced()
 
     def _check_pending_actions(self):
+        self._update_save_button_state()
         if self._is_active_processing():
             return
         if getattr(self, "save_and_close_on_finish", False):
