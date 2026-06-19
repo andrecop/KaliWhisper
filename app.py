@@ -138,6 +138,12 @@ combobox.DropdownMenu = ShadcnDropdown
 
 ctk.set_appearance_mode("dark")
 
+def _clean_string(s):
+    try:
+        return s.encode("latin1").decode("utf-8")
+    except Exception:
+        return s
+
 class TkinterTqdm(tqdm.tqdm):
     callback = None
     
@@ -249,7 +255,7 @@ class WhisperApp:
         default_device_name = None
         try:
             default_info = self.pa.get_default_input_device_info()
-            default_device_name = default_info.get('name')
+            default_device_name = _clean_string(default_info.get('name', ''))
         except Exception:
             pass
 
@@ -262,7 +268,9 @@ class WhisperApp:
                     for i in range(0, numdevices):
                         device_info = self.pa.get_device_info_by_host_api_device_index(h, i)
                         if device_info.get('maxInputChannels', 0) > 0:
-                            all_devices_info.append(device_info)
+                            dev_info_copy = dict(device_info)
+                            dev_info_copy['name'] = _clean_string(device_info.get('name', ''))
+                            all_devices_info.append(dev_info_copy)
                 except Exception:
                     pass
 
@@ -271,7 +279,7 @@ class WhisperApp:
             for i in range(0, mme_devices_count):
                 device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
                 if device_info.get('maxInputChannels', 0) > 0:
-                    name = device_info.get('name')
+                    name = _clean_string(device_info.get('name', ''))
                     if name in ["Microsoft Sound Mapper - Input", "Driver primario di acquisizione suoni"]:
                         continue
                     
