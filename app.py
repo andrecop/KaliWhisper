@@ -232,6 +232,7 @@ class WhisperApp:
         self.temp_files = set()
         self.active_audio_frames = []
         self.frames_since_last_transcribe = 0
+        self.speech_detected = False
         self.window_id = 0
         self.transcribe_seq = 0
         self.latest_seq_processed = 0
@@ -565,6 +566,7 @@ class WhisperApp:
             if self.model_combo.get().startswith("Whisper "):
                 self.active_audio_frames = []
                 self.frames_since_last_transcribe = 0
+                self.speech_detected = False
                 self.window_id = 0
                 self.transcribe_seq = 0
                 self.latest_seq_processed = 0
@@ -670,9 +672,13 @@ class WhisperApp:
                     if self.model_combo.get().startswith("Whisper "):
                         self.active_audio_frames.append(resampled_data.tobytes())
                         self.frames_since_last_transcribe += 1
+                        if rms > 250.0:
+                            self.speech_detected = True
                         if self.frames_since_last_transcribe >= 10:
                             self.frames_since_last_transcribe = 0
-                            self._trigger_transcribe(is_final=False)
+                            if self.speech_detected:
+                                self._trigger_transcribe(is_final=False)
+                                self.speech_detected = False
                         if len(self.active_audio_frames) >= 150:
                             self._trigger_transcribe(is_final=True)
                             self.active_audio_frames = self.active_audio_frames[-30:]
