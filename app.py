@@ -752,7 +752,7 @@ class WhisperApp:
         model_border.pack_propagate(False)
         
         self.model_combo = ctk.CTkOptionMenu(
-            model_border, values=["Vosk Live", "Whisper tiny", "Whisper base", "Whisper small", "Whisper medium"],
+            model_border, values=["Vosk Live", "Whisper tiny", "Whisper base", "Whisper small", "Whisper medium", "Whisper large", "Whisper turbo"],
             command=self._on_model_selected,
             fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
             text_color="#fafafa", font=("Segoe UI", 11),
