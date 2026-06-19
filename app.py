@@ -594,7 +594,7 @@ class WhisperApp:
                     
                     stream = self.pa.open(
                         format=format_type,
-                        channels=native_channels,
+                        channels=1,
                         rate=native_rate,
                         input=True,
                         input_device_index=device_idx if device_idx >= 0 else None,
@@ -614,8 +614,7 @@ class WhisperApp:
                 data = stream.read(chunk_size, exception_on_overflow=False)
                 import numpy as np
                 audio_data = np.frombuffer(data, dtype=np.int16)
-                audio_data = audio_data.reshape(-1, native_channels)
-                mono_data = audio_data.mean(axis=1)
+                mono_data = audio_data.astype(np.float64)
                 mono_data -= np.mean(mono_data)
                 mono_data = np.clip(mono_data * 3.0, -32768, 32767).astype(np.int16)
                 
