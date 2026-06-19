@@ -541,7 +541,7 @@ class WhisperApp:
         self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
         
-        self.dest_btn = ctk.CTkButton(self.close_btn_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=110, height=38)
+        self.dest_btn = ctk.CTkButton(self.close_btn_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=250, height=38)
         self.dest_btn.pack(side=tk.LEFT, padx=(0, 5))
         self._set_btn_state(self.dest_btn, "normal", "secondary")
         
@@ -550,6 +550,7 @@ class WhisperApp:
             text="💾 Salva tutto e Chiudi al termine", 
             command=self._save_all_and_close_on_finish, 
             font=("Segoe UI", 11, "bold"), 
+            width=250,
             height=38, 
             fg_color="#18181b", 
             border_color="#27272a", 
@@ -557,15 +558,15 @@ class WhisperApp:
             text_color="#fafafa",
             hover_color="#27272a"
         )
-        self.save_and_close_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
+        self.save_and_close_btn.pack(side=tk.LEFT, padx=(5, 5))
         
         self.ui_lang_btn = ctk.CTkButton(
             self.close_btn_frame, text="UI ▾", image=self.img_it, compound="left",
-            command=self._show_ui_flag_dropdown, width=68, height=38,
+            command=self._show_ui_flag_dropdown, height=38,
             fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
             text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
         )
-        self.ui_lang_btn.pack(side=tk.LEFT, padx=(5, 0))
+        self.ui_lang_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
 
         self._set_btn_state(self.start_btn, "disabled", "success")
