@@ -44,7 +44,7 @@ class WhisperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("KaliWhisper")
-        self.root.geometry("650x570")
+        self.root.geometry("650x600")
         self.root.minsize(550, 480)
         self.root.configure(fg_color="#09090b")
         
@@ -93,27 +93,67 @@ class WhisperApp:
         main_frame = ctk.CTkFrame(self.root, fg_color="#09090b")
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        model_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
-        model_frame.pack(fill=tk.X, pady=(0, 15))
+        self.model_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
+        self.model_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ctk.CTkLabel(model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
-        self.model_combo = ctk.CTkComboBox(
-            model_frame, values=["tiny", "base", "small", "medium"],
-            command=self._on_model_selected, width=120,
-            state="readonly",
-            fg_color="#18181b", border_color="#27272a", border_width=1,
-            button_color="#27272a", button_hover_color="#3f3f46",
-            text_color="#fafafa", font=("Segoe UI", 10),
+        ctk.CTkLabel(self.model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
+        
+        model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=120)
+        model_border.pack(side=tk.LEFT, padx=(0, 8))
+        model_border.pack_propagate(False)
+        
+        self.model_combo = ctk.CTkOptionMenu(
+            model_border, values=["tiny", "base", "small", "medium"],
+            command=self._on_model_selected,
+            fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11),
             dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
-            dropdown_hover_color="#27272a", dropdown_font=("Segoe UI", 10),
-            corner_radius=8
+            dropdown_hover_color="#27272a", dropdown_font=("Segoe UI", 11),
+            corner_radius=7
         )
+        self.model_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         self.model_combo.set(self.model_name)
-        self.model_combo.pack(side=tk.LEFT, padx=(0, 8))
         
-        self.download_btn = ctk.CTkButton(model_frame, text="⬇ Scarica", command=self._download_selected_model, font=("Segoe UI", 10, "bold"), width=90)
-        self.delete_btn = ctk.CTkButton(model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
-        self.update_btn = ctk.CTkButton(model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=self._download_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        
+        device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
+        device_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        ctk.CTkLabel(device_frame, text="Seleziona Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
+        
+        device_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30)
+        device_border.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        device_border.pack_propagate(False)
+        
+        self.devices = []
+        device_names = []
+        try:
+            info = self.pa.get_host_api_info_by_index(0)
+            numdevices = info.get('deviceCount', 0)
+            for i in range(0, numdevices):
+                device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
+                if device_info.get('maxInputChannels', 0) > 0:
+                    self.devices.append((i, device_info.get('name')))
+                    device_names.append(device_info.get('name'))
+        except Exception:
+            pass
+            
+        if not device_names:
+            device_names = ["Predefinito"]
+            self.devices = [(-1, "Predefinito")]
+            
+        self.device_combo = ctk.CTkOptionMenu(
+            device_border, values=device_names,
+            fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11),
+            dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
+            dropdown_hover_color="#27272a", dropdown_font=("Segoe UI", 11),
+            corner_radius=7
+        )
+        self.device_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        self.device_combo.set(device_names[0])
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
@@ -238,6 +278,7 @@ class WhisperApp:
 
     def _load_model_async(self, model_name):
         self.model_combo.configure(state="disabled")
+        self.device_combo.configure(state="disabled")
         self._set_btn_state(self.start_btn, "disabled", "primary")
         self._set_btn_state(self.delete_btn, "disabled", "danger")
         self._set_btn_state(self.update_btn, "disabled", "secondary")
@@ -261,12 +302,14 @@ class WhisperApp:
         threading.Thread(target=load_task, daemon=True).start()
 
     def _on_model_loaded(self):
-        self.model_combo.configure(state="readonly")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
         self._update_action_buttons()
         self._set_status("In attesa...")
 
     def _on_model_load_failed(self, error):
-        self.model_combo.configure(state="readonly")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
         self._update_action_buttons()
         self._set_status(f"Errore caricamento modello: {error}")
         messagebox.showerror("Errore", f"Impossibile caricare il modello Whisper: {error}")
@@ -274,12 +317,13 @@ class WhisperApp:
     def _download_selected_model(self):
         model_name = self.model_combo.get()
         self.model_combo.configure(state="disabled")
+        self.device_combo.configure(state="disabled")
         self._set_btn_state(self.download_btn, "disabled", "secondary")
         self._set_status(f"Avvio download modello {model_name}...")
         self._download_model_thread(model_name)
 
     def _download_model_thread(self, model_name):
-        self.progress_frame.pack(fill=tk.X, pady=(0, 15), after=self.model_combo.master)
+        self.progress_frame.pack(fill=tk.X, pady=(0, 15), after=self.model_frame)
         
         def download_task():
             model_dir = os.path.join(os.path.dirname(__file__), "models")
@@ -324,12 +368,14 @@ class WhisperApp:
             self.root.after(0, lambda: self.progress_bar.set(0.0))
 
     def _on_download_success(self, model_name):
-        self.model_combo.configure(state="readonly")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
         self._update_action_buttons()
         self._load_model_async(model_name)
 
     def _on_download_failed(self, model_name, error):
-        self.model_combo.configure(state="readonly")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
         self._update_action_buttons()
         self._set_status(f"Download fallito: {error}")
         messagebox.showerror("Errore", f"Impossibile scaricare il modello: {error}")
@@ -377,6 +423,7 @@ class WhisperApp:
             self._stop_recording_action()
             
         self.model_combo.configure(state="disabled")
+        self.device_combo.configure(state="disabled")
         self._set_btn_state(self.delete_btn, "disabled", "danger")
         self._set_btn_state(self.update_btn, "disabled", "secondary")
         self._set_status(f"Verifica aggiornamenti modello {model_name}...")
@@ -391,6 +438,7 @@ class WhisperApp:
         self._set_btn_state(self.start_btn, "disabled", "primary")
         self._set_btn_state(self.stop_btn, "normal", "secondary")
         self.model_combo.configure(state="disabled")
+        self.device_combo.configure(state="disabled")
         self._set_btn_state(self.delete_btn, "disabled", "danger")
         self._set_btn_state(self.update_btn, "disabled", "secondary")
         self._set_status("Registrazione in corso...")
@@ -398,14 +446,23 @@ class WhisperApp:
         threading.Thread(target=self._recording_worker, daemon=True).start()
 
     def _recording_worker(self):
+        selected_name = self.device_combo.get()
+        device_idx = -1
+        for idx, name in self.devices:
+            if name == selected_name:
+                device_idx = idx
+                break
         try:
-            self.stream = self.pa.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=16000,
-                input=True,
-                frames_per_buffer=1024
-            )
+            kwargs = {
+                "format": pyaudio.paInt16,
+                "channels": 1,
+                "rate": 16000,
+                "input": True,
+                "frames_per_buffer": 1024
+            }
+            if device_idx != -1:
+                kwargs["input_device_index"] = device_idx
+            self.stream = self.pa.open(**kwargs)
         except Exception as e:
             self.root.after(0, self._set_status, f"Errore microfono: {e}")
             self.root.after(0, self._on_recording_failed)
@@ -463,7 +520,8 @@ class WhisperApp:
         self.is_recording = False
         self._set_btn_state(self.start_btn, "normal", "primary")
         self._set_btn_state(self.stop_btn, "disabled", "secondary")
-        self.model_combo.configure(state="readonly")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
         self._update_action_buttons()
         messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
 
@@ -507,7 +565,8 @@ class WhisperApp:
             
         self._set_btn_state(self.start_btn, "normal", "primary")
         self._set_btn_state(self.stop_btn, "disabled", "secondary")
-        self.model_combo.configure(state="readonly")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
         self._update_action_buttons()
 
     def _transcription_worker(self):
