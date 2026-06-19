@@ -850,40 +850,40 @@ class WhisperApp:
         button_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         button_frame.pack(fill=tk.X)
         
-        self.reset_btn = ctk.CTkButton(button_frame, text="🗑 Reset", command=self._reset_transcription, font=("Segoe UI", 11, "bold"), height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
+        self.reset_btn = ctk.CTkButton(button_frame, text="🗑 Reset", command=self._reset_transcription, font=("Segoe UI", 11, "bold"), height=30, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
         self.reset_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
-        self.play_btn = ctk.CTkButton(button_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), height=38)
+        self.play_btn = ctk.CTkButton(button_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), height=30)
         self.play_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
 
-        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
+        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=30)
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
 
         self.ui_lang_btn = ctk.CTkButton(
             self.bottom_btn_frame, text="UI ▾", image=self.img_it, compound="left",
-            command=self._show_ui_flag_dropdown, height=38,
+            command=self._show_ui_flag_dropdown, height=30,
             fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
             text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
         )
         self.ui_lang_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
 
-        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=30)
         self.save_audio_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
 
-        self.save_btn = ctk.CTkButton(self.bottom_btn_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_btn = ctk.CTkButton(self.bottom_btn_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=30)
         self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         
         self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
         
-        self.visualizer_container = ctk.CTkFrame(self.close_btn_frame, fg_color="#18181b", width=140, height=38, border_color="#27272a", border_width=1)
+        self.visualizer_container = ctk.CTkFrame(self.close_btn_frame, fg_color="#18181b", width=140, height=30, border_color="#27272a", border_width=1)
         self.visualizer_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self.visualizer_container.pack_propagate(False)
         
-        self.visualizer = tk.Canvas(self.visualizer_container, height=36, bg="#18181b", highlightthickness=0)
+        self.visualizer = tk.Canvas(self.visualizer_container, height=28, bg="#18181b", highlightthickness=0)
         self.visualizer.pack(fill=tk.BOTH, expand=True, padx=2, pady=1)
 
         self.save_and_close_btn = ctk.CTkButton(
@@ -891,7 +891,7 @@ class WhisperApp:
             text="💾 Salva tutto e Chiudi al termine", 
             command=self._save_all_and_close_on_finish, 
             font=("Segoe UI", 11, "bold"), 
-            height=38, 
+            height=30, 
             fg_color="#18181b", 
             border_color="#27272a", 
             border_width=1, 
