@@ -307,14 +307,16 @@ class FlagDropdown(ctk.CTkToplevel):
         super().__init__(master)
         self.withdraw()
         self.overrideredirect(True)
-        self.configure(fg_color="#09090b")
+        self.configure(fg_color="#000001")
+        if os.name == "nt":
+            self.wm_attributes("-transparentcolor", "#000001")
         self._get_flag_image = get_flag_image_fn
         self._on_select = None
         
         self.border_frame = ctk.CTkFrame(
             self, fg_color="#18181b", border_color="#27272a", border_width=1, corner_radius=8
         )
-        self.border_frame.pack(fill=tk.BOTH, expand=True)
+        self.border_frame.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *args: self._populate_list())
@@ -441,12 +443,15 @@ class FlagDropdown(ctk.CTkToplevel):
         screen_height = self.winfo_screenheight()
         dropdown_height = 300
         
+        window_width = 254
+        window_height = dropdown_height + 4
+        
         if btn_y + btn_h + 2 + dropdown_height > screen_height - 40:
-            y = btn_y - dropdown_height - 2
+            y = btn_y - window_height + 2
         else:
-            y = btn_y + btn_h + 2
+            y = btn_y + btn_h
             
-        self.geometry(f"250x{dropdown_height}+{int(x)}+{int(y)}")
+        self.geometry(f"{window_width}x{window_height}+{int(x-2)}+{int(y)}")
         self.lift()
 
     def open(self, btn, on_select):
