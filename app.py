@@ -187,9 +187,26 @@ class WhisperApp:
         self.transcribe_lang = "it"
         
         from PIL import Image
-        assets_dir = os.path.join(os.path.dirname(__file__), "assets")
-        self.img_it = ctk.CTkImage(light_image=Image.open(os.path.join(assets_dir, "it.png")), size=(24, 16))
-        self.img_en = ctk.CTkImage(light_image=Image.open(os.path.join(assets_dir, "en.png")), size=(24, 16))
+        from svglib.svglib import svg2rlg
+        from reportlab.graphics import renderPM
+        import io
+
+        def load_svg_as_image(svg_path, size):
+            drawing = svg2rlg(svg_path)
+            # Scala il disegno SVG per adeguarlo alle dimensioni desiderate
+            factor_x = size[0] / drawing.width
+            factor_y = size[1] / drawing.height
+            drawing.scale(factor_x, factor_y)
+            drawing.width, drawing.height = size[0], size[1]
+            
+            png_data = io.BytesIO()
+            renderPM.drawToFile(drawing, png_data, fmt="PNG")
+            png_data.seek(0)
+            return Image.open(png_data)
+
+        flags_dir = os.path.join(os.path.dirname(__file__), "assets", "flags")
+        self.img_it = ctk.CTkImage(light_image=load_svg_as_image(os.path.join(flags_dir, "IT.svg"), (24, 16)), size=(24, 16))
+        self.img_en = ctk.CTkImage(light_image=load_svg_as_image(os.path.join(flags_dir, "GB.svg"), (24, 16)), size=(24, 16))
         
         self._setup_ui()
         self._update_action_buttons()
