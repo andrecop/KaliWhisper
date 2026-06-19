@@ -230,6 +230,7 @@ class WhisperApp:
         self.audio_queue = queue.Queue()
         self.transcription_queue = queue.Queue()
         self.temp_files = set()
+        self.all_recorded_audio = []
         self.active_audio_frames = []
         self.frames_since_last_transcribe = 0
         self.speech_detected = False
@@ -439,14 +440,23 @@ class WhisperApp:
         self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        self.save_btn = ctk.CTkButton(button_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
-        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
+        save_container = ctk.CTkFrame(button_frame, fg_color="transparent")
+        save_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
+        save_container.columnconfigure(0, weight=2)
+        save_container.columnconfigure(1, weight=1)
+        
+        self.save_btn = ctk.CTkButton(save_container, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_btn.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        
+        self.save_audio_btn = ctk.CTkButton(save_container, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_audio_btn.grid(row=0, column=1, sticky="ew", padx=(2, 0))
         
         self.reset_btn = ctk.CTkButton(button_frame, text="🗑", command=self._reset_transcription, font=("Segoe UI", 13), width=38, height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
         self.reset_btn.pack(side=tk.LEFT, padx=(5, 0))
         
         self._set_btn_state(self.start_btn, "disabled", "success")
         self._set_btn_state(self.save_btn, "disabled", "info")
+        self._set_btn_state(self.save_audio_btn, "disabled", "info")
 
     def _set_status(self, text):
         self.status_scroll_id = getattr(self, "status_scroll_id", 0) + 1
@@ -536,6 +546,10 @@ class WhisperApp:
             self._set_btn_state(self.save_btn, "normal", "info")
         else:
             self._set_btn_state(self.save_btn, "disabled", "info")
+        if not self.is_recording and getattr(self, "all_recorded_audio", None):
+            self._set_btn_state(self.save_audio_btn, "normal", "info")
+        else:
+            self._set_btn_state(self.save_audio_btn, "disabled", "info")
 
     def _toggle_recording(self):
         if not self.is_recording:
@@ -546,6 +560,8 @@ class WhisperApp:
             self.start_btn.configure(text="■ Ferma Trascrizione")
             self._set_btn_state(self.start_btn, "normal", "danger")
             self._set_btn_state(self.save_btn, "disabled", "info")
+            self._set_btn_state(self.save_audio_btn, "disabled", "info")
+            self.all_recorded_audio = []
             self.model_combo.configure(state="disabled")
             self.device_combo.configure(state="disabled")
             
@@ -669,6 +685,7 @@ class WhisperApp:
                 self.root.after(0, self._update_visualizer, rms, threshold)
                 
                 if self.is_recording:
+                    self.all_recorded_audio.append(resampled_data.tobytes())
                     if self.model_combo.get().startswith("Whisper "):
                         self.active_audio_frames.append(resampled_data.tobytes())
                         self.frames_since_last_transcribe += 1
@@ -761,15 +778,35 @@ class WhisperApp:
             
         self._update_save_button_state()
 
+    def _save_audio(self):
+        if not self.all_recorded_audio:
+            return
+        filename = f"registrazione_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        filepath = os.path.join(self.dest_dir, filename)
+        try:
+            raw_bytes = b"".join(self.all_recorded_audio)
+            with wave.open(filepath, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
+                wf.setframerate(16000)
+                wf.writeframes(raw_bytes)
+            self._set_status(f"Registrazione audio salvata: {filename}")
+            messagebox.showinfo("Salvataggio completato", f"La registrazione audio è stata salvata in:\n{filepath}")
+        except Exception as e:
+            self._set_status(f"Errore di salvataggio: {e}")
+            messagebox.showerror("Errore", f"Impossibile salvare il file audio: {e}")
+        self._update_save_button_state()
+
     def _reset_transcription(self):
         def do_reset():
             self.text_area.configure(state="normal")
             self.text_area.delete("1.0", "end")
             self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+            self.all_recorded_audio = []
             self._update_save_button_state()
-            self._set_status("Trascrizione resettata.")
+            self._set_status("Trascrizione e registrazione resettate.")
             
-        ConfirmDialog(self.root, "Conferma Reset", "Sei sicuro di voler cancellare tutta la trascrizione corrente?", do_reset)
+        ConfirmDialog(self.root, "Conferma Reset", "Sei sicuro di voler cancellare tutta la trascrizione e registrazione correnti?", do_reset)
 
     def _toggle_language(self):
         if self.transcribe_lang == "it":
