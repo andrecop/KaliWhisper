@@ -83,6 +83,26 @@ class WhisperApp:
                   
         style.configure("Horizontal.TProgressbar", background="#ffffff", troughcolor="#27272a", bordercolor="#27272a", lightcolor="#ffffff", darkcolor="#ffffff")
         
+        style.layout("Vertical.TScrollbar", [
+            ('Vertical.Scrollbar.trough', {
+                'children': [
+                    ('Vertical.Scrollbar.thumb', {'expand': '1', 'sticky': 'nswe'})
+                ],
+                'sticky': 'ns'
+            })
+        ])
+        style.configure("Vertical.TScrollbar",
+                        background="#27272a",
+                        troughcolor="#18181b",
+                        bordercolor="#18181b",
+                        lightcolor="#27272a",
+                        darkcolor="#27272a",
+                        arrowcolor="#fafafa",
+                        relief="flat",
+                        borderwidth=0)
+        style.map("Vertical.TScrollbar",
+                  background=[("active", "#3f3f46")])
+        
         self.root.option_add("*TCombobox*Listbox.background", "#18181b")
         self.root.option_add("*TCombobox*Listbox.foreground", "#fafafa")
         self.root.option_add("*TCombobox*Listbox.selectBackground", "#27272a")
@@ -142,13 +162,20 @@ class WhisperApp:
         
         tk.Label(text_frame, text="Trascrizione", font=("Segoe UI", 9, "bold"), bg="#18181b", fg="#fafafa").pack(anchor=tk.W, padx=12, pady=(8, 4))
         
-        self.text_area = scrolledtext.ScrolledText(
-            text_frame, wrap=tk.WORD, font=("Segoe UI", 11),
+        content_frame = tk.Frame(text_frame, bg="#18181b")
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 8))
+        
+        self.text_scroll = ttk.Scrollbar(content_frame, orient=tk.VERTICAL, style="Vertical.TScrollbar")
+        self.text_scroll.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 4))
+        
+        self.text_area = tk.Text(
+            content_frame, wrap=tk.WORD, font=("Segoe UI", 11),
             bg="#18181b", fg="#fafafa", insertbackground="#fafafa",
             selectbackground="#27272a", selectforeground="#ffffff",
-            borderwidth=0, highlightthickness=0, padx=12, pady=5
+            borderwidth=0, highlightthickness=0
         )
-        self.text_area.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 8))
+        self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 4))
+        self.text_scroll.config(command=self.text_area.yview)
         
         button_frame = tk.Frame(main_frame, bg="#09090b")
         button_frame.pack(fill=tk.X)
