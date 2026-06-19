@@ -1,0 +1,49 @@
+Istruzioni di installazione per Kali Linux / Debian / Ubuntu:
+
+1. Installare le dipendenze di sistema necessarie per l'audio e l'interfaccia:
+   sudo apt update
+   sudo apt install -y python3-dev portaudio19-dev libasound2-dev libcairo2-dev libgirepository1.0-dev
+   cd ~/Downloads/
+
+2. Clonare la repository ed entrare nella cartella:
+   git clone https://github.com/andrecop/KaliWhisper.git
+   cd KaliWhisper
+
+3. Creare e attivare l'ambiente virtuale Python:
+   python3 -m venv venv
+   source venv/bin/activate
+
+4. Installare le dipendenze del progetto:
+   pip install -r requirements.txt
+
+5. Avviare l'applicazione:
+   python3 app.py
+
+Nota:
+1. Per creare l'eseguibile autonomo per Linux dopo aver completato l'installazione, eseguire lo script:
+chmod +x build_linux.sh
+./build_linux.sh
+
+2. Sposta l'applicazione:
+sudo mv ~/Downloads/KaliWhisper /opt/
+sudo chown -R $USER:$USER /opt/KaliWhisper
+nano ~/.local/share/applications/kaliwhisper.desktop
+
+3. Incolla all'interno la seguente configurazione:
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=KaliWhisper
+Comment=Offline real-time speech-to-text desktop application for Windows & Linux, powered by Vosk & Whisper.
+X-Developer=Andrea
+# Usa bash per spostarsi nella directory e lanciare il python del venv
+Exec=bash -c "cd /opt/KaliWhisper && ./venv/bin/python app.py"
+# Se hai un file immagine nel repo (es. icona.png), inserisci qui il percorso assoluto:
+Icon=/opt/KaliWhisper/assets/icon.png
+# Imposta a 'true' se vuoi che si apra anche una finestra di terminale per leggere eventuali log o print
+Terminal=false
+Categories=Utility;Development;
+
+4. Rendi eseguibile e aggiorna il menù:
+chmod +x ~/.local/share/applications/kaliwhisper.desktop
+update-desktop-database ~/.local/share/applications/
