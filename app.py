@@ -16,7 +16,9 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
-from faster_whisper import WhisperModel
+from vosk import Model, KaldiRecognizer
+import json
+import numpy as np
 class ShadcnDropdown(ctk.CTkToplevel):
     def __init__(self, master, values, command, fg_color=None, hover_color=None, text_color=None, font=None, **kwargs):
         super().__init__(master)
@@ -133,6 +135,56 @@ class ShadcnDropdown(ctk.CTkToplevel):
 import customtkinter.windows.widgets.ctk_optionmenu as optmenu
 optmenu.DropdownMenu = ShadcnDropdown
 
+class ConfirmDialog(ctk.CTkToplevel):
+    def __init__(self, master, title, message, on_confirm):
+        super().__init__(master)
+        self.title(title)
+        self.geometry("320x160")
+        self.resizable(False, False)
+        self.configure(fg_color="#09090b")
+        
+        # Center the window relative to parent
+        self.update_idletasks()
+        parent_x = master.winfo_rootx()
+        parent_y = master.winfo_rooty()
+        parent_w = master.winfo_width()
+        parent_h = master.winfo_height()
+        x = parent_x + (parent_w - 320) // 2
+        y = parent_y + (parent_h - 160) // 2
+        self.geometry(f"320x160+{x}+{y}")
+        
+        self.overrideredirect(True)
+        self.border_frame = ctk.CTkFrame(
+            self, fg_color="#09090b", border_color="#27272a", border_width=1, corner_radius=8
+        )
+        self.border_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.label = ctk.CTkLabel(self.border_frame, text=message, font=("Segoe UI", 12), text_color="#fafafa", wraplength=280)
+        self.label.pack(expand=True, fill=tk.BOTH, padx=20, pady=(25, 10))
+        
+        btn_frame = ctk.CTkFrame(self.border_frame, fg_color="transparent")
+        btn_frame.pack(fill=tk.X, pady=(0, 20), padx=20)
+        
+        self.yes_btn = ctk.CTkButton(
+            btn_frame, text="Sì", width=120, height=32,
+            fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff",
+            font=("Segoe UI", 11, "bold"), corner_radius=6,
+            command=lambda: [on_confirm(), self.destroy()]
+        )
+        self.yes_btn.pack(side=tk.LEFT, expand=True, padx=5)
+        
+        self.no_btn = ctk.CTkButton(
+            btn_frame, text="No", width=120, height=32,
+            fg_color="#27272a", hover_color="#3f3f46", text_color="#fafafa",
+            font=("Segoe UI", 11), corner_radius=6,
+            command=self.destroy
+        )
+        self.no_btn.pack(side=tk.RIGHT, expand=True, padx=5)
+        
+        self.transient(master)
+        self.grab_set()
+        self.focus_force()
+
 import customtkinter.windows.widgets.ctk_combobox as combobox
 combobox.DropdownMenu = ShadcnDropdown
 
@@ -173,16 +225,13 @@ class WhisperApp:
         self.root.configure(fg_color="#09090b")
         
         self.model = None
-        self.model_name = "base"
+        self.models_cache = {}
         self.is_recording = False
-        self.temp_files = set()
-        
-        self.transcription_queue = queue.Queue()
+        self.audio_queue = queue.Queue()
         self.pa = pyaudio.PyAudio()
         self.stream = None
+        self.rec = None
         
-        self.current_file_total = 0
-        self.current_file_progress = 0
         self.dest_dir = os.path.expanduser("~")
         self.transcribe_lang = "it"
         
@@ -193,7 +242,6 @@ class WhisperApp:
 
         def load_svg_as_image(svg_path, size):
             drawing = svg2rlg(svg_path)
-            # Scala il disegno SVG per adeguarlo alle dimensioni desiderate
             factor_x = size[0] / drawing.width
             factor_y = size[1] / drawing.height
             drawing.scale(factor_x, factor_y)
@@ -209,13 +257,11 @@ class WhisperApp:
         self.img_en = ctk.CTkImage(light_image=load_svg_as_image(os.path.join(flags_dir, "GB.svg"), (24, 16)), size=(24, 16))
         
         self._setup_ui()
-        self._update_action_buttons()
-        
-        if self._is_model_downloaded(self.model_name):
-            self._load_model_async(self.model_name)
-        else:
-            self._set_status(f"Modello {self.model_name} non scaricato. Clicca su '⬇ Scarica'.")
+        self._load_model_async(self.transcribe_lang)
             
+        self.app_running = True
+        self.noise_floor = 300.0
+        threading.Thread(target=self._audio_monitor_worker, daemon=True).start()
         threading.Thread(target=self._transcription_worker, daemon=True).start()
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
@@ -252,15 +298,15 @@ class WhisperApp:
         self.model_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.model_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ctk.CTkLabel(self.model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(self.model_frame, text="Motore di Trascrizione:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
         
         model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=130)
         model_border.pack(side=tk.LEFT, padx=(0, 8))
         model_border.pack_propagate(False)
         
         self.model_combo = ctk.CTkOptionMenu(
-            model_border, values=["tiny", "base", "small", "medium"],
-            command=self._on_model_selected,
+            model_border, values=["Vosk Live"],
+            command=None,
             fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
             text_color="#fafafa", font=("Segoe UI", 11),
             dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
@@ -268,11 +314,11 @@ class WhisperApp:
             corner_radius=7
         )
         self.model_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
-        self.model_combo.set(self.model_name)
+        self.model_combo.set("Vosk Live")
         
-        self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=self._download_selected_model, font=("Segoe UI", 10, "bold"), width=90)
-        self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
-        self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=None, font=("Segoe UI", 10, "bold"), width=90)
+        self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=None, font=("Segoe UI", 10, "bold"), width=90)
+        self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=None, font=("Segoe UI", 10, "bold"), width=90)
         
         self.lang_btn = ctk.CTkButton(self.model_frame, text="", image=self.img_it, command=self._toggle_language, width=46)
         self.lang_btn.pack(side=tk.RIGHT, padx=2)
@@ -300,41 +346,28 @@ class WhisperApp:
             pass
 
         try:
-            all_devices_info = []
-            for h in range(self.pa.get_host_api_count()):
+            for i in range(self.pa.get_device_count()):
                 try:
-                    info = self.pa.get_host_api_info_by_index(h)
-                    numdevices = info.get('deviceCount', 0)
-                    for i in range(0, numdevices):
-                        device_info = self.pa.get_device_info_by_host_api_device_index(h, i)
-                        if device_info.get('maxInputChannels', 0) > 0:
-                            dev_info_copy = dict(device_info)
-                            dev_info_copy['name'] = _clean_string(device_info.get('name', ''))
-                            all_devices_info.append(dev_info_copy)
+                    device_info = self.pa.get_device_info_by_index(i)
+                    if device_info.get('maxInputChannels', 0) > 0:
+                        name = _clean_string(device_info.get('name', ''))
+                        if name not in device_names:
+                            try:
+                                test_stream = self.pa.open(
+                                    format=pyaudio.paInt16,
+                                    channels=int(device_info.get('maxInputChannels', 1)),
+                                    rate=int(device_info.get('defaultSampleRate', 16000)),
+                                    input=True,
+                                    input_device_index=i,
+                                    frames_per_buffer=256
+                                )
+                                test_stream.close()
+                            except Exception:
+                                continue
+                            self.devices.append((i, name))
+                            device_names.append(name)
                 except Exception:
                     pass
-
-            mme_info = self.pa.get_host_api_info_by_index(0)
-            mme_devices_count = mme_info.get('deviceCount', 0)
-            for i in range(0, mme_devices_count):
-                device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
-                if device_info.get('maxInputChannels', 0) > 0:
-                    name = _clean_string(device_info.get('name', ''))
-                    if name in ["Microsoft Sound Mapper - Input", "Driver primario di acquisizione suoni"]:
-                        continue
-                    
-                    full_name = name
-                    best_global_idx = device_info.get('index')
-                    
-                    for other_info in all_devices_info:
-                        other_name = other_info.get('name')
-                        if other_name.startswith(name) and len(other_name) > len(full_name):
-                            full_name = other_name
-                            best_global_idx = other_info.get('index')
-                            
-                    if full_name not in device_names:
-                        self.devices.append((best_global_idx, full_name))
-                        device_names.append(full_name)
         except Exception:
             pass
         if not device_names:
@@ -391,118 +424,75 @@ class WhisperApp:
         button_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         button_frame.pack(fill=tk.X)
         
+        self.visualizer = tk.Canvas(button_frame, width=38, height=38, bg="#09090b", highlightthickness=0)
+        self.visualizer.pack(side=tk.LEFT, padx=(0, 5))
+        
         self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
         self.save_btn = ctk.CTkButton(button_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
-        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
+        
+        self.reset_btn = ctk.CTkButton(button_frame, text="🗑", command=self._reset_transcription, font=("Segoe UI", 13), width=38, height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
+        self.reset_btn.pack(side=tk.LEFT, padx=(5, 0))
         
         self._set_btn_state(self.start_btn, "disabled", "success")
         self._set_btn_state(self.save_btn, "disabled", "info")
 
     def _set_status(self, text):
-        self.status_label.configure(text=text)
+        self.status_scroll_id = getattr(self, "status_scroll_id", 0) + 1
+        scroll_id = self.status_scroll_id
+        max_len = 18
+        if len(text) <= max_len:
+            self.status_label.configure(text=text)
+            return
 
-    def _is_model_downloaded(self, model_name):
-        model_dir = os.path.join(os.path.dirname(__file__), "models")
-        repo_id = f"Systran/faster-whisper-{model_name}"
-        folder_name = f"models--{repo_id.replace('/', '--')}"
-        path = os.path.join(model_dir, folder_name, "snapshots")
-        if os.path.exists(path):
-            try:
-                for sub in os.listdir(path):
-                    sub_path = os.path.join(path, sub)
-                    if os.path.isdir(sub_path):
-                        if os.path.isfile(os.path.join(sub_path, "model.bin")):
-                            return True
-            except Exception:
-                pass
-        return False
+        def animate(start_idx, direction, pause_ticks):
+            if getattr(self, "status_scroll_id", 0) != scroll_id:
+                return
+            self.status_label.configure(text=text[start_idx:start_idx+max_len])
+            if start_idx == 0 and direction < 0:
+                if pause_ticks < 15:
+                    self.root.after(100, lambda: animate(0, -1, pause_ticks + 1))
+                else:
+                    self.root.after(250, lambda: animate(1, 1, 0))
+                return
+            max_start = len(text) - max_len
+            if start_idx == max_start and direction > 0:
+                if pause_ticks < 15:
+                    self.root.after(100, lambda: animate(max_start, 1, pause_ticks + 1))
+                else:
+                    self.root.after(250, lambda: animate(max_start, -1, 0))
+                return
+            if direction > 0:
+                self.root.after(250, lambda: animate(start_idx + 1, 1, 0))
+            else:
+                self.root.after(250, lambda: animate(0, -1, 0))
+        animate(0, -1, 0)
 
     def _update_action_buttons(self):
-        model_name = self.model_combo.get()
-        downloaded = self._is_model_downloaded(model_name)
-        
-        self.update_btn.pack_forget()
-        
-        if downloaded:
-            self.download_btn.pack_forget()
-            self.delete_btn.pack(side=tk.LEFT, padx=2)
-            self._set_btn_state(self.delete_btn, "normal", "danger")
-            if self.model is not None and self.model_name == model_name:
-                self._set_btn_state(self.start_btn, "normal", "success")
-            else:
-                self._set_btn_state(self.start_btn, "disabled", "success")
-            self._check_for_updates_async(model_name)
-        else:
-            self.delete_btn.pack_forget()
-            self.download_btn.pack(side=tk.LEFT, padx=2)
-            self._set_btn_state(self.download_btn, "normal", "secondary")
-            self._set_btn_state(self.start_btn, "disabled", "success")
+        pass
 
     def _check_for_updates_async(self, model_name):
-        def check_task():
-            model_dir = os.path.join(os.path.dirname(__file__), "models")
-            repo_id = f"Systran/faster-whisper-{model_name}"
-            folder_name = f"models--{repo_id.replace('/', '--')}"
-            snapshots_path = os.path.join(model_dir, folder_name, "snapshots")
-            if not os.path.exists(snapshots_path):
-                return
-            try:
-                from huggingface_hub import model_info
-                info = model_info(repo_id, timeout=3)
-                latest_sha = info.sha
-                if latest_sha:
-                    local_sha_path = os.path.join(snapshots_path, latest_sha)
-                    if not os.path.exists(local_sha_path):
-                        self.root.after(0, lambda: self._show_update_button_if_selected(model_name))
-            except Exception:
-                pass
-        threading.Thread(target=check_task, daemon=True).start()
+        pass
 
     def _show_update_button_if_selected(self, checked_model):
-        if self.model_combo.get() == checked_model:
-            self.update_btn.pack(side=tk.LEFT, padx=2)
-            self._set_btn_state(self.update_btn, "normal", "secondary")
+        pass
 
     def _on_model_selected(self, selected_value):
-        self._update_action_buttons()
-        
-        if self._is_model_downloaded(selected_value):
-            if self.model_name != selected_value or self.model is None:
-                self._load_model_async(selected_value)
-            else:
-                self._set_status("Modello pronto ed in memoria.")
-        else:
-            if self.is_recording:
-                self._stop_recording_action()
-            if self.model is not None:
-                del self.model
-                import gc
-                gc.collect()
-                self.model = None
-            self.model_name = selected_value
-            self._set_status(f"Modello {selected_value} non scaricato. Clicca su '⬇ Scarica'.")
+        pass
 
-    def _load_model_async(self, model_name):
+    def _load_model_async(self, lang):
         self.model_combo.configure(state="disabled")
         self.device_combo.configure(state="disabled")
         self._set_btn_state(self.start_btn, "disabled", "success")
-        self._set_btn_state(self.delete_btn, "disabled", "danger")
-        self._set_btn_state(self.update_btn, "disabled", "secondary")
-        self._set_status(f"Caricamento modello {model_name}...")
+        self._set_status(f"Caricamento modello {lang}...")
         
         def load_task():
             try:
-                if self.model is not None:
-                    del self.model
-                    import gc
-                    gc.collect()
-                    self.model = None
-                
-                model_dir = os.path.join(os.path.dirname(__file__), "models")
-                self.model = WhisperModel(model_name, device="cpu", compute_type="int8", download_root=model_dir)
-                self.model_name = model_name
+                if lang not in self.models_cache:
+                    self.models_cache[lang] = Model(lang="en-us" if lang == "en" else "it")
+                self.model = self.models_cache[lang]
                 self.root.after(0, self._on_model_loaded)
             except Exception as e:
                 self.root.after(0, self._on_model_load_failed, e)
@@ -513,7 +503,6 @@ class WhisperApp:
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
         self._set_btn_state(self.start_btn, "normal", "success")
-        self._update_action_buttons()
         self._update_save_button_state()
         self._set_status("In attesa...")
 
@@ -521,125 +510,9 @@ class WhisperApp:
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
         self._set_btn_state(self.start_btn, "disabled", "success")
-        self._update_action_buttons()
         self._update_save_button_state()
-        self._set_status(f"Errore caricamento modello: {error}")
-        messagebox.showerror("Errore", f"Impossibile caricare il modello Whisper: {error}")
-
-    def _download_selected_model(self):
-        model_name = self.model_combo.get()
-        self.model_combo.configure(state="disabled")
-        self.device_combo.configure(state="disabled")
-        self._set_btn_state(self.download_btn, "disabled", "secondary")
-        self._set_status(f"Avvio download modello {model_name}...")
-        self._download_model_thread(model_name)
-
-    def _download_model_thread(self, model_name):
-        self.progress_frame.pack(fill=tk.X, pady=(0, 15), after=self.model_frame)
-        
-        def download_task():
-            model_dir = os.path.join(os.path.dirname(__file__), "models")
-            original_tqdm = tqdm.tqdm
-            original_auto_tqdm = tqdm.auto.tqdm
-            tqdm.tqdm = TkinterTqdm
-            tqdm.auto.tqdm = TkinterTqdm
-            TkinterTqdm.callback = self._tqdm_callback
-            try:
-                from faster_whisper.utils import download_model
-                download_model(model_name, cache_dir=model_dir)
-                self.root.after(0, self._on_download_success, model_name)
-            except Exception as e:
-                self.root.after(0, self._on_download_failed, model_name, e)
-            finally:
-                tqdm.tqdm = original_tqdm
-                tqdm.auto.tqdm = original_auto_tqdm
-                TkinterTqdm.callback = None
-                self.root.after(0, self.progress_frame.pack_forget)
-                
-        threading.Thread(target=download_task, daemon=True).start()
-
-    def _tqdm_callback(self, action, value, desc):
-        if action == "init":
-            self.current_file_total = value or 0
-            self.current_file_progress = 0
-            if desc:
-                self.root.after(0, self._set_status, f"Download: {desc}")
-            if self.current_file_total > 0:
-                self.root.after(0, lambda: self.progress_bar.configure(mode="determinate"))
-                self.root.after(0, lambda: self.progress_bar.set(0.0))
-            else:
-                self.root.after(0, lambda: self.progress_bar.configure(mode="indeterminate"))
-                self.root.after(0, self.progress_bar.start)
-        elif action == "update":
-            if self.current_file_total > 0:
-                self.current_file_progress += value
-                fraction = min(1.0, float(self.current_file_progress) / self.current_file_total)
-                self.root.after(0, lambda: self.progress_bar.set(fraction))
-        elif action == "close":
-            self.root.after(0, self.progress_bar.stop)
-            self.root.after(0, lambda: self.progress_bar.set(0.0))
-
-    def _on_download_success(self, model_name):
-        self.model_combo.configure(state="normal")
-        self.device_combo.configure(state="normal")
-        self._update_action_buttons()
-        self._load_model_async(model_name)
-
-    def _on_download_failed(self, model_name, error):
-        self.model_combo.configure(state="normal")
-        self.device_combo.configure(state="normal")
-        self._update_action_buttons()
-        self._set_status(f"Download fallito: {error}")
-        messagebox.showerror("Errore", f"Impossibile scaricare il modello: {error}")
-
-    def _delete_selected_model(self):
-        model_name = self.model_combo.get()
-        if not messagebox.askyesno("Conferma", f"Sei sicuro di voler eliminare il modello {model_name} dal disco?"):
-            return
-            
-        if self.is_recording:
-            self._stop_recording_action()
-            
-        if self.model_name == model_name and self.model is not None:
-            del self.model
-            import gc
-            gc.collect()
-            self.model = None
-            self._set_btn_state(self.start_btn, "disabled", "success")
-            
-        model_dir = os.path.join(os.path.dirname(__file__), "models")
-        repo_id = f"Systran/faster-whisper-{model_name}"
-        folder_name = f"models--{repo_id.replace('/', '--')}"
-        path = os.path.join(model_dir, folder_name)
-        
-        try:
-            if os.path.exists(path):
-                shutil.rmtree(path)
-            self._set_status(f"Modello {model_name} eliminato.")
-            self._update_action_buttons()
-        except PermissionError:
-            self._set_status(f"Modello {model_name} bloccato in memoria.")
-            messagebox.showwarning(
-                "Eliminazione Parziale",
-                "Il modello è attualmente caricato e bloccato in memoria dal processo.\n"
-                "Per eliminarlo completamente, riavvia l'applicazione e clicca su Elimina senza caricarlo."
-            )
-            self._update_action_buttons()
-        except Exception as e:
-            self._set_status(f"Errore eliminazione: {e}")
-            messagebox.showerror("Errore", f"Impossibile eliminare il modello: {e}")
-
-    def _update_selected_model(self):
-        model_name = self.model_combo.get()
-        if self.is_recording:
-            self._stop_recording_action()
-            
-        self.model_combo.configure(state="disabled")
-        self.device_combo.configure(state="disabled")
-        self._set_btn_state(self.delete_btn, "disabled", "danger")
-        self._set_btn_state(self.update_btn, "disabled", "secondary")
-        self._set_status(f"Verifica aggiornamenti modello {model_name}...")
-        self._download_model_thread(model_name)
+        self._set_status(f"Errore caricamento: {error}")
+        messagebox.showerror("Errore", f"Impossibile caricare il modello Vosk: {error}")
 
     def _update_save_button_state(self):
         text_content = self.text_area.get("1.0", "end").strip()
@@ -653,53 +526,162 @@ class WhisperApp:
             if self.model is None:
                 messagebox.showwarning("Attenzione", "Il modello non è ancora pronto.")
                 return
-                
             self.is_recording = True
             self.start_btn.configure(text="■ Ferma Trascrizione")
             self._set_btn_state(self.start_btn, "normal", "danger")
             self._set_btn_state(self.save_btn, "disabled", "info")
             self.model_combo.configure(state="disabled")
             self.device_combo.configure(state="disabled")
-            self._set_btn_state(self.delete_btn, "disabled", "danger")
-            self._set_btn_state(self.update_btn, "disabled", "secondary")
-            self.text_area.configure(state="disabled")
-            self._set_status("Registrazione in corso...")
             
-            threading.Thread(target=self._recording_worker, daemon=True).start()
+            self.text_area.configure(state="normal")
+            existing_text = self.text_area.get("1.0", "end").strip()
+            now_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            if existing_text:
+                self.text_area.insert("end", f"\n\n------- continua {now_str} -------\n\n")
+            else:
+                self.text_area.insert("end", f"------- {now_str} -------\n\n")
+            self.text_area.see("end")
+            
+            self.text_area.mark_set("active_start", "insert")
+            self.text_area.mark_gravity("active_start", "left")
+            self.text_area.configure(state="disabled")
+            
+            self._set_status("Registrazione in corso...")
+            self.rec = KaldiRecognizer(self.model, 16000)
+            while not self.audio_queue.empty():
+                try:
+                    self.audio_queue.get_nowait()
+                    self.audio_queue.task_done()
+                except Exception:
+                    break
         else:
             self.start_btn.configure(text="▶ Avvia Trascrizione")
             self._set_btn_state(self.start_btn, "disabled", "success")
             self._stop_recording_action()
 
-    def _on_recording_failed(self):
-        self.is_recording = False
-        self.start_btn.configure(text="▶ Avvia Trascrizione")
-        self._set_btn_state(self.start_btn, "normal", "success")
-        self.model_combo.configure(state="normal")
-        self.device_combo.configure(state="normal")
-        self.text_area.configure(state="normal")
-        self._update_action_buttons()
-        self._update_save_button_state()
-        messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
+    def _audio_monitor_worker(self):
+        current_device = None
+        stream = None
+        native_channels = 1
+        native_rate = 16000
+        format_type = pyaudio.paInt16
+        
+        while getattr(self, "app_running", True):
+            selected = self.device_combo.get()
+            device_idx = -1
+            for idx, name in self.devices:
+                if name == selected:
+                    device_idx = idx
+                    break
+            if device_idx != current_device:
+                if stream is not None:
+                    try:
+                        stream.stop_stream()
+                        stream.close()
+                    except Exception:
+                        pass
+                    stream = None
+                try:
+                    try:
+                        device_info = self.pa.get_device_info_by_index(device_idx) if device_idx >= 0 else self.pa.get_default_input_device_info()
+                    except Exception:
+                        device_info = self.pa.get_default_input_device_info()
+                    native_channels = int(device_info.get('maxInputChannels', 1))
+                    native_rate = int(device_info.get('defaultSampleRate', 16000))
+                    chunk_size = int(native_rate * 0.1)
+                    
+                    stream = self.pa.open(
+                        format=format_type,
+                        channels=native_channels,
+                        rate=native_rate,
+                        input=True,
+                        input_device_index=device_idx if device_idx >= 0 else None,
+                        frames_per_buffer=chunk_size
+                    )
+                    current_device = device_idx
+                    print(f"TRACER: Opened device {device_idx} ({device_info.get('name')}) | channels: {native_channels} | rate: {native_rate} | chunk_size: {chunk_size}", flush=True)
+                except Exception as e:
+                    print(f"TRACER: Monitor failed to open stream: {e}", flush=True)
+                    import time
+                    time.sleep(1.0)
+                    continue
+            if stream is None:
+                import time
+                time.sleep(0.1)
+                continue
+            try:
+                data = stream.read(chunk_size, exception_on_overflow=False)
+                import numpy as np
+                audio_data = np.frombuffer(data, dtype=np.int16)
+                if native_channels > 1:
+                    audio_data = audio_data.reshape(-1, native_channels)
+                    mono_data = audio_data[:, 0].astype(np.float64)
+                else:
+                    mono_data = audio_data.astype(np.float64)
+                mono_data -= np.mean(mono_data)
+                mono_data = np.clip(mono_data * 3.0, -32768, 32767).astype(np.int16)
+                
+                if native_rate != 16000:
+                    num_samples = int(len(mono_data) * 16000 / native_rate)
+                    resampled_data = np.interp(
+                        np.linspace(0, len(mono_data), num_samples, endpoint=False),
+                        np.arange(len(mono_data)),
+                        mono_data
+                    ).astype(np.int16)
+                else:
+                    resampled_data = mono_data
+                
+                audio_signals = resampled_data.astype(np.float32)
+                rms = np.sqrt(np.mean(audio_signals ** 2))
+                
+                threshold = 0.0
+                
+                self.root.after(0, self._update_visualizer, rms, threshold)
+                
+                if self.is_recording:
+                    self.audio_queue.put((resampled_data.tobytes(), rms))
+            except Exception as e:
+                print(f"TRACER: Monitor read error: {e}", flush=True)
+                import time
+                time.sleep(0.1)
+                
+        if stream is not None:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except Exception:
+                pass
+
+    def _update_visualizer(self, rms, threshold):
+        self.visualizer.delete("all")
+        import math
+        normalized = min(1.0, rms / 3000.0)
+        bar_width = 4
+        gap = 3
+        start_x = 7
+        for i in range(4):
+            factor = (0.5 + 0.5 * math.sin(i * 1.5)) if rms > 10 else 0.05
+            h = int(3 + 30 * normalized * factor)
+            h = max(3, min(30, h))
+            y0 = 34 - h
+            y1 = 34
+            x0 = start_x + i * (bar_width + gap)
+            x1 = x0 + bar_width
+            color = "#ef4444" if rms < threshold else "#22c55e"
+            self.visualizer.create_rectangle(x0, y0, x1, y1, fill=color, outline="")
 
     def _stop_recording_action(self):
         if not self.is_recording:
             return
         self.is_recording = False
-        self._set_status("Elaborazione degli ultimi frammenti...")
-        
-        def wait_and_save():
-            self.transcription_queue.join()
-            self.root.after(0, self._on_transcription_finished)
-            
-        threading.Thread(target=wait_and_save, daemon=True).start()
+        self.audio_queue.put(None)
+        self._on_transcription_finished()
 
     def _on_transcription_finished(self):
         self._set_btn_state(self.start_btn, "normal", "success")
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
         self.text_area.configure(state="normal")
-        self._update_action_buttons()
         self._update_save_button_state()
         self._set_status("In attesa...")
 
@@ -729,6 +711,16 @@ class WhisperApp:
             
         self._update_save_button_state()
 
+    def _reset_transcription(self):
+        def do_reset():
+            self.text_area.configure(state="normal")
+            self.text_area.delete("1.0", "end")
+            self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+            self._update_save_button_state()
+            self._set_status("Trascrizione resettata.")
+            
+        ConfirmDialog(self.root, "Conferma Reset", "Sei sicuro di voler cancellare tutta la trascrizione corrente?", do_reset)
+
     def _toggle_language(self):
         if self.transcribe_lang == "it":
             self.transcribe_lang = "en"
@@ -738,40 +730,73 @@ class WhisperApp:
             self.transcribe_lang = "it"
             self.lang_btn.configure(text="", image=self.img_it)
             self._set_status("Lingua: Italiano")
+        
+        self._load_model_async(self.transcribe_lang)
 
     def _transcription_worker(self):
         while True:
-            item = self.transcription_queue.get()
+            item = self.audio_queue.get()
             if item is None:
-                break
-            wav_path = item
-            try:
-                if self.model is not None:
-                    segments, info = self.model.transcribe(wav_path, beam_size=5, language=self.transcribe_lang)
-                    text = "".join([segment.text for segment in segments])
-                    if text.strip():
-                        self.root.after(0, self._append_text, text)
-            except Exception as e:
-                self.root.after(0, self._set_status, f"Errore trascrizione: {e}")
-            finally:
+                print("TRACER: Worker got None sentinel", flush=True)
+                if not self.app_running:
+                    break
                 try:
-                    if os.path.exists(wav_path):
-                        os.remove(wav_path)
-                        self.temp_files.discard(wav_path)
-                except Exception:
-                    pass
-                self.transcription_queue.task_done()
+                    if self.rec:
+                        res = json.loads(self.rec.Result())
+                        text = res.get("text", "")
+                        print(f"TRACER: Final stop text: '{text}'", flush=True)
+                        if text.strip():
+                            self.root.after(0, self._update_transcription_text, text, True)
+                except Exception as e:
+                    print(f"TRACER: final result error: {e}", flush=True)
+                self.audio_queue.task_done()
+                continue
+            
+            data, rms = item
+            print(f"TRACER: Worker got chunk. Len: {len(data)}, RMS: {rms:.2f}", flush=True)
+            
+            try:
+                if self.rec:
+                    if self.rec.AcceptWaveform(data):
+                        res = json.loads(self.rec.Result())
+                        text = res.get("text", "")
+                        print(f"TRACER: Final AcceptWaveform text: '{text}'", flush=True)
+                        if text.strip():
+                            self.root.after(0, self._update_transcription_text, text, True)
+                    else:
+                        res = json.loads(self.rec.PartialResult())
+                        text = res.get("partial", "")
+                        if text.strip():
+                            print(f"TRACER: Partial text: '{text}'", flush=True)
+                        self.root.after(0, self._update_transcription_text, text, False)
+                else:
+                    print("TRACER: self.rec is None!", flush=True)
+            except Exception as e:
+                print(f"TRACER: AcceptWaveform error: {e}", flush=True)
+            finally:
+                self.audio_queue.task_done()
 
-    def _append_text(self, text):
+    def _clean_hallucinations(self, text):
+        return text
+
+    def _update_transcription_text(self, text, is_final):
         self.text_area.configure(state="normal")
-        self.text_area.insert("end", text + " ")
+        self.text_area.delete("active_start", "end-1c")
+        if text.strip():
+            self.text_area.insert("active_start", text.strip() + " ")
         self.text_area.see("end")
-        self.text_area.configure(state="disabled")
+        if is_final:
+            self.text_area.mark_set("active_start", "insert")
+        if self.is_recording:
+            self.text_area.configure(state="disabled")
+        else:
+            self.text_area.configure(state="normal")
         self._update_save_button_state()
 
     def _on_closing(self):
         self.is_recording = False
-        self.transcription_queue.put(None)
+        self.app_running = False
+        self.audio_queue.put(None)
         try:
             if hasattr(self, 'stream') and self.stream.is_active():
                 self.stream.stop_stream()
@@ -779,14 +804,6 @@ class WhisperApp:
         except Exception:
             pass
         self.pa.terminate()
-        
-        for wav_path in list(self.temp_files):
-            try:
-                if os.path.exists(wav_path):
-                    os.remove(wav_path)
-            except Exception:
-                pass
-                
         self.root.destroy()
 
 if __name__ == "__main__":
