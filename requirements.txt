@@ -1,0 +1,8 @@
+customtkinter
+faster-whisper
+pyaudio
+huggingface_hub
+tqdm
+svglib
+reportlab
+Pillow
