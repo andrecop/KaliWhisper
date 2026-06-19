@@ -460,11 +460,31 @@ class FlagDropdown(ctk.CTkToplevel):
 
     def _populate_list(self):
         query = self.search_var.get().lower().strip()
+        visible_count = 0
         for row in self.rows:
             if not query or query in row["name_lower"] or query in row["code_lower"]:
                 row["frame"].pack(fill=tk.X, pady=1)
+                visible_count += 1
             else:
                 row["frame"].pack_forget()
+                
+        show_search = len(self.rows) > 6
+        if show_search:
+            self.search_entry.pack(fill=tk.X, padx=6, pady=(6, 2))
+            row_height = 30
+            non_row_height = 48
+            calculated_height = non_row_height + visible_count * row_height
+            if calculated_height > 300:
+                self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 4), pady=(2, 6))
+                self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0), pady=(2, 6))
+            else:
+                self.scrollbar.pack_forget()
+                self.canvas.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 6))
+        else:
+            self.search_entry.pack_forget()
+            self.scrollbar.pack_forget()
+            self.canvas.pack(fill=tk.BOTH, expand=True, padx=4, pady=6)
+            
         self.reposition()
             
     def _on_click_outside(self, event):
@@ -490,11 +510,17 @@ class FlagDropdown(ctk.CTkToplevel):
             if not query or query in row["name_lower"] or query in row["code_lower"]:
                 visible_count += 1
                 
+        show_search = len(self.rows) > 6
         row_height = 30
-        non_row_height = 48
-        calculated_height = non_row_height + visible_count * row_height
-        dropdown_height = min(300, calculated_height)
         
+        if show_search:
+            non_row_height = 48
+            calculated_height = non_row_height + visible_count * row_height
+            dropdown_height = min(300, calculated_height)
+        else:
+            non_row_height = 16
+            dropdown_height = non_row_height + visible_count * row_height
+            
         screen_height = self.winfo_screenheight()
         window_width = 254
         window_height = dropdown_height + 4
@@ -506,7 +532,7 @@ class FlagDropdown(ctk.CTkToplevel):
             
         self.geometry(f"{window_width}x{window_height}+{int(x-2)}+{int(y)}")
         self.lift()
-
+ 
     def open(self, btn, on_select):
         self._on_select = on_select
         self._trigger_btn = btn
@@ -519,7 +545,8 @@ class FlagDropdown(ctk.CTkToplevel):
         self.update()
         self.update_idletasks()
         self.focus_force()
-        self.search_entry.focus()
+        if len(self.rows) > 6:
+            self.search_entry.focus()
         
         self._configure_bind_id = self.master.bind("<Configure>", lambda e: self.reposition(), add="+")
         
