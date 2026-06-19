@@ -97,13 +97,16 @@ class WhisperApp:
         model_frame.pack(fill=tk.X, pady=(0, 15))
         
         ctk.CTkLabel(model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
-        self.model_combo = ctk.CTkOptionMenu(
+        self.model_combo = ctk.CTkComboBox(
             model_frame, values=["tiny", "base", "small", "medium"],
             command=self._on_model_selected, width=120,
-            fg_color="#27272a", button_color="#27272a",
-            button_hover_color="#3f3f46", text_color="#fafafa",
+            state="readonly",
+            fg_color="#18181b", border_color="#27272a", border_width=1,
+            button_color="#27272a", button_hover_color="#3f3f46",
+            text_color="#fafafa", font=("Segoe UI", 10),
             dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
-            dropdown_hover_color="#27272a"
+            dropdown_hover_color="#27272a", dropdown_font=("Segoe UI", 10),
+            corner_radius=8
         )
         self.model_combo.set(self.model_name)
         self.model_combo.pack(side=tk.LEFT, padx=(0, 8))
@@ -258,12 +261,12 @@ class WhisperApp:
         threading.Thread(target=load_task, daemon=True).start()
 
     def _on_model_loaded(self):
-        self.model_combo.configure(state="normal")
+        self.model_combo.configure(state="readonly")
         self._update_action_buttons()
         self._set_status("In attesa...")
 
     def _on_model_load_failed(self, error):
-        self.model_combo.configure(state="normal")
+        self.model_combo.configure(state="readonly")
         self._update_action_buttons()
         self._set_status(f"Errore caricamento modello: {error}")
         messagebox.showerror("Errore", f"Impossibile caricare il modello Whisper: {error}")
@@ -321,12 +324,12 @@ class WhisperApp:
             self.root.after(0, lambda: self.progress_bar.set(0.0))
 
     def _on_download_success(self, model_name):
-        self.model_combo.configure(state="normal")
+        self.model_combo.configure(state="readonly")
         self._update_action_buttons()
         self._load_model_async(model_name)
 
     def _on_download_failed(self, model_name, error):
-        self.model_combo.configure(state="normal")
+        self.model_combo.configure(state="readonly")
         self._update_action_buttons()
         self._set_status(f"Download fallito: {error}")
         messagebox.showerror("Errore", f"Impossibile scaricare il modello: {error}")
@@ -460,7 +463,7 @@ class WhisperApp:
         self.is_recording = False
         self._set_btn_state(self.start_btn, "normal", "primary")
         self._set_btn_state(self.stop_btn, "disabled", "secondary")
-        self.model_combo.configure(state="normal")
+        self.model_combo.configure(state="readonly")
         self._update_action_buttons()
         messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
 
@@ -485,7 +488,7 @@ class WhisperApp:
             self._set_status("Salvataggio annullato (testo vuoto)")
             self._set_btn_state(self.start_btn, "normal", "primary")
             self._set_btn_state(self.stop_btn, "disabled", "secondary")
-            self.model_combo.configure(state="normal")
+            self.model_combo.configure(state="readonly")
             self._update_action_buttons()
             return
             
@@ -504,7 +507,7 @@ class WhisperApp:
             
         self._set_btn_state(self.start_btn, "normal", "primary")
         self._set_btn_state(self.stop_btn, "disabled", "secondary")
-        self.model_combo.configure(state="normal")
+        self.model_combo.configure(state="readonly")
         self._update_action_buttons()
 
     def _transcription_worker(self):
