@@ -1,0 +1,16 @@
+{
+  "model_label": "Motore di Trascrizione:",
+  "dest_btn": "📂 Destinazione",
+  "device_label": "Ingresso Audio:",
+  "text_label": "Trascrizione",
+  "start_btn_start": "▶ Avvia Trascrizione",
+  "start_btn_stop": "■ Ferma Trascrizione",
+  "play_btn_start": "🔊 Ascolta Trascrizione",
+  "play_btn_stop": "■ Ferma Ascolto",
+  "save_btn": "💾 Salva Trascrizione",
+  "save_audio_btn": "🎙️ Salva Audio",
+  "save_and_close_btn": "💾 Salva tutto e Chiudi al termine",
+  "continued_tag": "continua",
+  "started_tag": "inizio",
+  "status_prefix": "Lingua UI"
+}

@@ -1,0 +1,16 @@
+{
+  "model_label": "Transkriptions-Engine:",
+  "dest_btn": "📂 Zielordner",
+  "device_label": "Audio-Eingang:",
+  "text_label": "Transkription",
+  "start_btn_start": "▶ Transkription Starten",
+  "start_btn_stop": "■ Transkription Stoppen",
+  "play_btn_start": "🔊 Transkription Anhören",
+  "play_btn_stop": "■ Anhören Stoppen",
+  "save_btn": "💾 Transkription Speichern",
+  "save_audio_btn": "🎙️ Audio Speichern",
+  "save_and_close_btn": "💾 Alles Speichern & Beenden",
+  "continued_tag": "fortgesetzt",
+  "started_tag": "gestartet",
+  "status_prefix": "Benutzeroberfläche"
+}

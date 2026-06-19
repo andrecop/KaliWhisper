@@ -1,0 +1,16 @@
+{
+  "model_label": "Moteur de Transcription:",
+  "dest_btn": "📂 Destination",
+  "device_label": "Entrée Audio:",
+  "text_label": "Transcription",
+  "start_btn_start": "▶ Démarrer la Transcription",
+  "start_btn_stop": "■ Arrêter la Transcription",
+  "play_btn_start": "🔊 Écouter la Transcription",
+  "play_btn_stop": "■ Arrêter l'Écoute",
+  "save_btn": "💾 Sauvegarder la Transcription",
+  "save_audio_btn": "🎙️ Sauvegarder l'Audio",
+  "save_and_close_btn": "💾 Tout Sauvegarder & Fermer",
+  "continued_tag": "suite",
+  "started_tag": "commencé",
+  "status_prefix": "Langue de l'interface"
+}

@@ -1,0 +1,16 @@
+{
+  "model_label": "Transcription Engine:",
+  "dest_btn": "📂 Destination",
+  "device_label": "Audio Input:",
+  "text_label": "Transcription",
+  "start_btn_start": "▶ Start Transcription",
+  "start_btn_stop": "■ Stop Transcription",
+  "play_btn_start": "🔊 Listen to Transcription",
+  "play_btn_stop": "■ Stop Listening",
+  "save_btn": "💾 Save Transcription",
+  "save_audio_btn": "🎙️ Save Audio",
+  "save_and_close_btn": "💾 Save All & Close on Finish",
+  "continued_tag": "continued",
+  "started_tag": "started",
+  "status_prefix": "UI Language"
+}

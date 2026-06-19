@@ -1,0 +1,16 @@
+{
+  "model_label": "Motor de Transcripción:",
+  "dest_btn": "📂 Destino",
+  "device_label": "Entrada de Audio:",
+  "text_label": "Transcripción",
+  "start_btn_start": "▶ Iniciar Transcripción",
+  "start_btn_stop": "■ Detener Transcripción",
+  "play_btn_start": "🔊 Escuchar Transcripción",
+  "play_btn_stop": "■ Detener Escucha",
+  "save_btn": "💾 Guardar Transcripción",
+  "save_audio_btn": "🎙️ Guardar Audio",
+  "save_and_close_btn": "💾 Guardar todo y Cerrar al terminar",
+  "continued_tag": "continuado",
+  "started_tag": "iniciado",
+  "status_prefix": "Idioma de la interfaz"
+}

@@ -1502,115 +1502,60 @@ class WhisperApp:
         self.ui_lang_btn.configure(image=self.get_flag_image(flag_code))
         if hasattr(self, "wer_tooltip"):
             self.wer_tooltip.set_language(lang_code)
-        if lang_code == "en":
-            self.model_label.configure(text="Transcription Engine:")
-            self.dest_btn.configure(text="📂 Destination")
-            self.device_label.configure(text="Audio Input:")
-            self.text_label.configure(text="Transcription")
             
-            if self.is_recording:
-                self.start_btn.configure(text="■ Stop Transcription")
-            else:
-                self.start_btn.configure(text="▶ Start Transcription")
-                
-            if getattr(self, "is_playing", False):
-                self.play_btn.configure(text="■ Stop Listening")
-            else:
-                self.play_btn.configure(text="🔊 Listen to Transcription")
-                
-            self.save_btn.configure(text="💾 Save Transcription")
-            self.save_audio_btn.configure(text="🎙️ Save Audio")
-            self.save_and_close_btn.configure(text="💾 Save All & Close on Finish")
+        loc_dir = os.path.join(os.path.dirname(__file__), "assets", "localization")
+        loc_file = os.path.join(loc_dir, f"{lang_code}.json")
+        if not os.path.exists(loc_file):
+            loc_file = os.path.join(loc_dir, "en.json")
             
-            self.text_area.configure(state="normal")
-            content = self.text_area.get("1.0", "end")
-            new_content = content.replace("------- continua ", "------- continued ").replace("------- inizio ", "------- started ")
-            self.text_area.delete("1.0", "end")
-            self.text_area.insert("1.0", new_content.strip())
-            self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+        try:
+            with open(loc_file, "r", encoding="utf-8") as f:
+                t = json.load(f)
+        except Exception:
+            t = {
+                "model_label": "Transcription Engine:",
+                "dest_btn": "📂 Destination",
+                "device_label": "Audio Input:",
+                "text_label": "Transcription",
+                "start_btn_start": "▶ Start Transcription",
+                "start_btn_stop": "■ Stop Transcription",
+                "play_btn_start": "🔊 Listen to Transcription",
+                "play_btn_stop": "■ Stop Listening",
+                "save_btn": "💾 Save Transcription",
+                "save_audio_btn": "🎙️ Save Audio",
+                "save_and_close_btn": "💾 Save All & Close on Finish",
+                "continued_tag": "continued",
+                "started_tag": "started",
+                "status_prefix": "UI Language"
+            }
             
-            self._set_status("UI Language: English")
-        elif lang_code == "it":
-            self.model_label.configure(text="Motore di Trascrizione:")
-            self.dest_btn.configure(text="📂 Destinazione")
-            self.device_label.configure(text="Ingresso Audio:")
-            self.text_label.configure(text="Trascrizione")
-            
-            if self.is_recording:
-                self.start_btn.configure(text="■ Ferma Trascrizione")
-            else:
-                self.start_btn.configure(text="▶ Avvia Trascrizione")
-                
-            if getattr(self, "is_playing", False):
-                self.play_btn.configure(text="■ Ferma Ascolto")
-            else:
-                self.play_btn.configure(text="🔊 Ascolta Trascrizione")
-                
-            self.save_btn.configure(text="💾 Salva Trascrizione")
-            self.save_audio_btn.configure(text="🎙️ Salva Audio")
-            self.save_and_close_btn.configure(text="💾 Salva tutto e Chiudi al termine")
-            
-            self.text_area.configure(state="normal")
-            content = self.text_area.get("1.0", "end")
-            new_content = content.replace("------- continued ", "------- continua ").replace("------- started ", "------- inizio ")
-            self.text_area.delete("1.0", "end")
-            self.text_area.insert("1.0", new_content.strip())
-            self.text_area.configure(state="normal" if not self.is_recording else "disabled")
-            
-            self._set_status("Lingua UI: Italiano")
-        else:
-            def translate_ui_task():
-                try:
-                    from deep_translator import GoogleTranslator
-                    translator = GoogleTranslator(source="it", target=lang_code)
-                    
-                    model_lbl = translator.translate("Motore di Trascrizione:")
-                    dest_txt = translator.translate("Destinazione")
-                    device_lbl = translator.translate("Ingresso Audio:")
-                    text_lbl = translator.translate("Trascrizione")
-                    
-                    start_rec = translator.translate("Avvia Trascrizione")
-                    stop_rec = translator.translate("Ferma Trascrizione")
-                    
-                    start_play = translator.translate("Ascolta Trascrizione")
-                    stop_play = translator.translate("Ferma Ascolto")
-                    
-                    save_tx = translator.translate("Salva Trascrizione")
-                    save_aud = translator.translate("Salva Audio")
-                    save_all = translator.translate("Salva tutto e Chiudi al termine")
-                    
-                    continued_tag = translator.translate("continua").lower()
-                    started_tag = translator.translate("inizio").lower()
-                    
-                    def apply_translated_ui():
-                        self.model_label.configure(text=model_lbl)
-                        self.dest_btn.configure(text=f"📂 {dest_txt}")
-                        self.device_label.configure(text=device_lbl)
-                        self.text_label.configure(text=text_lbl)
-                        self.start_btn.configure(text=f"■ {stop_rec}" if self.is_recording else f"▶ {start_rec}")
-                        self.play_btn.configure(text=f"■ {stop_play}" if getattr(self, "is_playing", False) else f"🔊 {start_play}")
-                        self.save_btn.configure(text=f"💾 {save_tx}")
-                        self.save_audio_btn.configure(text=f"🎙️ {save_aud}")
-                        self.save_and_close_btn.configure(text=f"💾 {save_all}")
-                        
-                        self.text_area.configure(state="normal")
-                        content = self.text_area.get("1.0", "end")
-                        import re
-                        new_content = content
-                        new_content = re.sub(r"------- (continua|continued) ", f"------- {continued_tag} ", new_content)
-                        new_content = re.sub(r"------- (inizio|started) ", f"------- {started_tag} ", new_content)
-                        self.text_area.delete("1.0", "end")
-                        self.text_area.insert("1.0", new_content.strip())
-                        self.text_area.configure(state="normal" if not self.is_recording else "disabled")
-                        
-                        lang_name = lang_item["name"].split(" (")[0] if lang_item else lang_code.upper()
-                        self._set_status(f"UI: {lang_name}")
-                        
-                    self.root.after(0, apply_translated_ui)
-                except Exception:
-                    self.root.after(0, lambda: self._update_ui_language("en"))
-                    
-            threading.Thread(target=translate_ui_task, daemon=True).start()
+        self.model_label.configure(text=t.get("model_label", ""))
+        self.dest_btn.configure(text=t.get("dest_btn", ""))
+        self.device_label.configure(text=t.get("device_label", ""))
+        self.text_label.configure(text=t.get("text_label", ""))
+        
+        self.start_btn.configure(text=t.get("start_btn_stop", "") if self.is_recording else t.get("start_btn_start", ""))
+        self.play_btn.configure(text=t.get("play_btn_stop", "") if getattr(self, "is_playing", False) else t.get("play_btn_start", ""))
+        self.save_btn.configure(text=t.get("save_btn", ""))
+        self.save_audio_btn.configure(text=t.get("save_audio_btn", ""))
+        self.save_and_close_btn.configure(text=t.get("save_and_close_btn", ""))
+        
+        self.text_area.configure(state="normal")
+        content = self.text_area.get("1.0", "end")
+        
+        continued_tag = t.get("continued_tag", "continued")
+        started_tag = t.get("started_tag", "started")
+        
+        import re
+        new_content = content
+        new_content = re.sub(r"------- (continua|continued|fortgesetzt|suite|continuado) ", f"------- {continued_tag} ", new_content)
+        new_content = re.sub(r"------- (inizio|started|gestartet|commencé|iniciado) ", f"------- {started_tag} ", new_content)
+        self.text_area.delete("1.0", "end")
+        self.text_area.insert("1.0", new_content.strip())
+        self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+        
+        lang_name = lang_item["name"].split(" (")[0] if lang_item else lang_code.upper()
+        self._set_status(f"{t.get('status_prefix', 'UI')}: {lang_name}")
 
     def _transcription_worker(self):
         while True:
