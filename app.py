@@ -17,15 +17,112 @@ import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
 from faster_whisper import WhisperModel
-import sys
-from customtkinter.windows.widgets.core_widget_classes import DropdownMenu
+class ShadcnDropdown(ctk.CTkToplevel):
+    def __init__(self, master, values, command, fg_color=None, hover_color=None, text_color=None, font=None, **kwargs):
+        super().__init__(master)
+        self.withdraw()
+        self.overrideredirect(True)
+        
+        self._values = values
+        self._command = command
+        self._fg_color = fg_color or "#18181b"
+        self._hover_color = hover_color or "#27272a"
+        self._text_color = text_color or "#fafafa"
+        self._font = font or ("Segoe UI", 11)
+        
+        self.border_frame = ctk.CTkFrame(
+            self, fg_color=self._fg_color, border_color="#27272a", border_width=1, corner_radius=8
+        )
+        self.border_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self._rebuild_items()
+        
+        self.bind("<Button-1>", self._on_click_outside)
+        self.bind("<Escape>", lambda e: self.close())
+        
+    def _rebuild_items(self):
+        for widget in self.border_frame.winfo_children():
+            widget.destroy()
+            
+        for val in self._values:
+            btn = ctk.CTkButton(
+                self.border_frame, text=val, anchor="w",
+                fg_color="transparent", text_color=self._text_color,
+                hover_color=self._hover_color, font=self._font,
+                height=28, corner_radius=6,
+                command=lambda v=val: self._on_select(v)
+            )
+            btn.pack(fill=tk.X, padx=4, pady=2)
+            
+    def _on_select(self, value):
+        self._command(value)
+        self.close()
+        
+    def _on_click_outside(self, event):
+        x, y = event.x_root, event.y_root
+        win_x = self.winfo_rootx()
+        win_y = self.winfo_rooty()
+        win_w = self.winfo_width()
+        win_h = self.winfo_height()
+        if not (win_x <= x <= win_x + win_w and win_y <= y <= win_y + win_h):
+            self.close()
+            
+    def open(self, x, y):
+        parent_width = self.master.winfo_width()
+        height = len(self._values) * 32 + 8
+        self.geometry(f"{parent_width}x{height}+{int(x)}+{int(y)}")
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+        
+    def close(self):
+        try:
+            self.grab_release()
+        except Exception:
+            pass
+        self.withdraw()
+        
+    def configure(self, **kwargs):
+        rebuild = False
+        if "values" in kwargs:
+            self._values = kwargs.pop("values")
+            rebuild = True
+        if "fg_color" in kwargs:
+            self._fg_color = kwargs.pop("fg_color")
+            self.border_frame.configure(fg_color=self._fg_color)
+            rebuild = True
+        if "hover_color" in kwargs:
+            self._hover_color = kwargs.pop("hover_color")
+            rebuild = True
+        if "text_color" in kwargs:
+            self._text_color = kwargs.pop("text_color")
+            rebuild = True
+        if "font" in kwargs:
+            self._font = kwargs.pop("font")
+            rebuild = True
+            
+        if rebuild:
+            self._rebuild_items()
+            
+    def cget(self, attribute_name):
+        if attribute_name == "values":
+            return self._values
+        elif attribute_name == "fg_color":
+            return self._fg_color
+        elif attribute_name == "hover_color":
+            return self._hover_color
+        elif attribute_name == "text_color":
+            return self._text_color
+        elif attribute_name == "font":
+            return self._font
+        return None
 
-_orig_menu_configure = DropdownMenu._configure_menu_for_platforms
-def _custom_menu_configure(self):
-    _orig_menu_configure(self)
-    if sys.platform.startswith("win"):
-        tk.Menu.configure(self, borderwidth=0, activeborderwidth=0)
-DropdownMenu._configure_menu_for_platforms = _custom_menu_configure
+import customtkinter.windows.widgets.ctk_optionmenu as optmenu
+optmenu.DropdownMenu = ShadcnDropdown
+
+import customtkinter.windows.widgets.ctk_combobox as combobox
+combobox.DropdownMenu = ShadcnDropdown
 
 ctk.set_appearance_mode("dark")
 
