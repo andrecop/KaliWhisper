@@ -304,6 +304,7 @@ class WhisperApp:
         self.dest_dir = self.dest_root
         self.custom_dest = False
         self.transcribe_lang = "it"
+        self.target_lang = "it"
         
         from PIL import Image
         from svglib.svglib import svg2rlg
@@ -390,6 +391,17 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=None, font=("Segoe UI", 10, "bold"), width=90)
+        self.target_lang_btn = ctk.CTkButton(
+            self.model_frame, text=" ▾", image=self.img_it, compound="left",
+            command=self._show_target_flag_dropdown, width=64, height=30,
+            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
+        )
+        self.target_lang_btn.pack(side=tk.RIGHT, padx=2)
+        
+        self.arrow_label = ctk.CTkLabel(self.model_frame, text="→", font=("Segoe UI", 12, "bold"), text_color="#a1a1aa")
+        self.arrow_label.pack(side=tk.RIGHT, padx=4)
+        
         self.lang_btn = ctk.CTkButton(
             self.model_frame, text=" ▾", image=self.img_it, compound="left",
             command=self._show_flag_dropdown, width=64, height=30,
@@ -963,6 +975,54 @@ class WhisperApp:
         
         self._load_model_async(self.model_combo.get(), self.transcribe_lang)
 
+    def _show_target_flag_dropdown(self):
+        x = self.target_lang_btn.winfo_rootx()
+        y = self.target_lang_btn.winfo_rooty() + self.target_lang_btn.winfo_height() + 2
+        dropdown = FlagDropdown(self.root, self.img_it, self.img_en, self._on_target_language_selected)
+        dropdown.open(x, y)
+
+    def _on_target_language_selected(self, selected_lang):
+        old_lang = self.target_lang
+        self.target_lang = selected_lang
+        if selected_lang == "en":
+            self.target_lang_btn.configure(image=self.img_en)
+            self._set_status("Traduzione in: Inglese")
+        else:
+            self.target_lang_btn.configure(image=self.img_it)
+            self._set_status("Traduzione in: Italiano")
+        self._translate_existing_text(old_lang, selected_lang)
+
+    def _translate_existing_text(self, old_lang, new_lang):
+        text_content = self.text_area.get("1.0", "end").strip()
+        if not text_content or old_lang == new_lang:
+            return
+        def translate_task():
+            self._set_status("Traduzione in corso...")
+            try:
+                from deep_translator import GoogleTranslator
+                lines = text_content.split("\n")
+                translated_lines = []
+                for line in lines:
+                    if line.strip():
+                        if line.strip().startswith("-------"):
+                            translated_lines.append(line)
+                        else:
+                            translated_lines.append(GoogleTranslator(source=old_lang, target=new_lang).translate(line))
+                    else:
+                        translated_lines.append("")
+                new_text = "\n".join(translated_lines)
+                def update_ui():
+                    self.text_area.configure(state="normal")
+                    self.text_area.delete("1.0", "end")
+                    self.text_area.insert("1.0", new_text)
+                    self.text_area.mark_set("active_start", "end-1c")
+                    self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+                    self._set_status(f"Tradotto in {new_lang.upper()}")
+                self.root.after(0, update_ui)
+            except Exception as e:
+                self.root.after(0, self._set_status, f"Errore traduzione: {e}")
+        threading.Thread(target=translate_task, daemon=True).start()
+
     def _transcription_worker(self):
         while True:
             item = self.audio_queue.get()
@@ -1124,6 +1184,13 @@ class WhisperApp:
         self.text_area.delete("active_start", "end-1c")
         if text.strip():
             formatted = self._format_text(text.strip(), is_final)
+            if self.target_lang != self.transcribe_lang:
+                try:
+                    from deep_translator import GoogleTranslator
+                    translated = GoogleTranslator(source=self.transcribe_lang, target=self.target_lang).translate(formatted)
+                    formatted = translated
+                except Exception as e:
+                    print(f"Translation error: {e}")
             self.text_area.insert("active_start", formatted + " ")
         self.text_area.see("end")
         if is_final:
