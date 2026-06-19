@@ -366,21 +366,10 @@ class WhisperApp:
                 device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
                 if device_info.get('maxInputChannels', 0) > 0:
                     name = _clean_string(device_info.get('name', ''))
-                    if name in ["Microsoft Sound Mapper - Input", "Driver primario di acquisizione suoni"]:
-                        continue
-                    
-                    full_name = name
-                    best_global_idx = device_info.get('index')
-                    
-                    for other_info in all_devices_info:
-                        other_name = other_info.get('name')
-                        if other_name.startswith(name) and len(other_name) > len(full_name):
-                            full_name = other_name
-                            best_global_idx = other_info.get('index')
-                            
-                    if full_name not in device_names:
-                        self.devices.append((best_global_idx, full_name))
-                        device_names.append(full_name)
+                    if name not in device_names:
+                        global_idx = device_info.get('index', i)
+                        self.devices.append((global_idx, name))
+                        device_names.append(name)
         except Exception:
             pass
         if not device_names:
@@ -617,12 +606,17 @@ class WhisperApp:
                     import time
                     time.sleep(1.0)
                     continue
+            if stream is None:
+                import time
+                time.sleep(0.1)
+                continue
             try:
                 data = stream.read(chunk_size, exception_on_overflow=False)
                 import numpy as np
                 audio_data = np.frombuffer(data, dtype=np.int16)
                 audio_data = audio_data.reshape(-1, native_channels)
                 mono_data = audio_data.mean(axis=1)
+                mono_data -= np.mean(mono_data)
                 mono_data = np.clip(mono_data * 3.0, -32768, 32767).astype(np.int16)
                 
                 if native_rate != 16000:
@@ -636,7 +630,6 @@ class WhisperApp:
                     resampled_data = mono_data
                 
                 audio_signals = resampled_data.astype(np.float32)
-                audio_signals -= np.mean(audio_signals)
                 rms = np.sqrt(np.mean(audio_signals ** 2))
                 
                 threshold = 0.0
@@ -644,7 +637,7 @@ class WhisperApp:
                 self.root.after(0, self._update_visualizer, rms, threshold)
                 
                 if self.is_recording:
-                    self.audio_queue.put(resampled_data.tobytes())
+                    self.audio_queue.put((resampled_data.tobytes(), rms))
             except Exception as e:
                 print(f"TRACER: Monitor read error: {e}", flush=True)
                 import time
@@ -740,14 +733,16 @@ class WhisperApp:
 
     def _transcription_worker(self):
         while True:
-            data = self.audio_queue.get()
-            if data is None:
+            item = self.audio_queue.get()
+            if item is None:
+                print("TRACER: Worker got None sentinel", flush=True)
                 if not self.app_running:
                     break
                 try:
                     if self.rec:
                         res = json.loads(self.rec.Result())
                         text = res.get("text", "")
+                        print(f"TRACER: Final stop text: '{text}'", flush=True)
                         if text.strip():
                             self.root.after(0, self._update_transcription_text, text, True)
                 except Exception as e:
@@ -755,17 +750,25 @@ class WhisperApp:
                 self.audio_queue.task_done()
                 continue
             
+            data, rms = item
+            print(f"TRACER: Worker got chunk. Len: {len(data)}, RMS: {rms:.2f}", flush=True)
+            
             try:
                 if self.rec:
                     if self.rec.AcceptWaveform(data):
                         res = json.loads(self.rec.Result())
                         text = res.get("text", "")
+                        print(f"TRACER: Final AcceptWaveform text: '{text}'", flush=True)
                         if text.strip():
                             self.root.after(0, self._update_transcription_text, text, True)
                     else:
                         res = json.loads(self.rec.PartialResult())
                         text = res.get("partial", "")
+                        if text.strip():
+                            print(f"TRACER: Partial text: '{text}'", flush=True)
                         self.root.after(0, self._update_transcription_text, text, False)
+                else:
+                    print("TRACER: self.rec is None!", flush=True)
             except Exception as e:
                 print(f"TRACER: AcceptWaveform error: {e}", flush=True)
             finally:
