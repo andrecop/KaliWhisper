@@ -228,6 +228,13 @@ class WhisperApp:
         self.models_cache = {}
         self.is_recording = False
         self.audio_queue = queue.Queue()
+        self.transcription_queue = queue.Queue()
+        self.temp_files = set()
+        self.active_audio_frames = []
+        self.frames_since_last_transcribe = 0
+        self.window_id = 0
+        self.transcribe_seq = 0
+        self.latest_seq_processed = 0
         self.pa = pyaudio.PyAudio()
         self.stream = None
         self.rec = None
@@ -257,12 +264,13 @@ class WhisperApp:
         self.img_en = ctk.CTkImage(light_image=load_svg_as_image(os.path.join(flags_dir, "GB.svg"), (24, 16)), size=(24, 16))
         
         self._setup_ui()
-        self._load_model_async(self.transcribe_lang)
+        self._load_model_async("Vosk Live", self.transcribe_lang)
             
         self.app_running = True
         self.noise_floor = 300.0
         threading.Thread(target=self._audio_monitor_worker, daemon=True).start()
         threading.Thread(target=self._transcription_worker, daemon=True).start()
+        threading.Thread(target=self._whisper_transcription_worker, daemon=True).start()
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     def _set_btn_state(self, btn, state, btn_type="secondary"):
@@ -305,8 +313,8 @@ class WhisperApp:
         model_border.pack_propagate(False)
         
         self.model_combo = ctk.CTkOptionMenu(
-            model_border, values=["Vosk Live"],
-            command=None,
+            model_border, values=["Vosk Live", "Whisper tiny", "Whisper base", "Whisper small", "Whisper medium"],
+            command=self._on_model_selected,
             fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
             text_color="#fafafa", font=("Segoe UI", 11),
             dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
@@ -480,19 +488,26 @@ class WhisperApp:
         pass
 
     def _on_model_selected(self, selected_value):
-        pass
+        self._load_model_async(selected_value, self.transcribe_lang)
 
-    def _load_model_async(self, lang):
+    def _load_model_async(self, engine_name, lang):
         self.model_combo.configure(state="disabled")
         self.device_combo.configure(state="disabled")
         self._set_btn_state(self.start_btn, "disabled", "success")
-        self._set_status(f"Caricamento modello {lang}...")
+        self._set_status(f"Caricamento {engine_name} ({lang})...")
         
         def load_task():
             try:
-                if lang not in self.models_cache:
-                    self.models_cache[lang] = Model(lang="en-us" if lang == "en" else "it")
-                self.model = self.models_cache[lang]
+                cache_key = f"{engine_name}_{lang}"
+                if cache_key not in self.models_cache:
+                    if engine_name.startswith("Whisper "):
+                        model_size = engine_name.split(" ", 1)[1]
+                        from faster_whisper import WhisperModel
+                        model_dir = os.path.join(os.path.dirname(__file__), "models")
+                        self.models_cache[cache_key] = WhisperModel(model_size, device="cpu", compute_type="int8", download_root=model_dir)
+                    else:
+                        self.models_cache[cache_key] = Model(lang="en-us" if lang == "en" else "it")
+                self.model = self.models_cache[cache_key]
                 self.root.after(0, self._on_model_loaded)
             except Exception as e:
                 self.root.after(0, self._on_model_load_failed, e)
@@ -512,7 +527,7 @@ class WhisperApp:
         self._set_btn_state(self.start_btn, "disabled", "success")
         self._update_save_button_state()
         self._set_status(f"Errore caricamento: {error}")
-        messagebox.showerror("Errore", f"Impossibile caricare il modello Vosk: {error}")
+        messagebox.showerror("Errore", f"Impossibile caricare il modello: {error}")
 
     def _update_save_button_state(self):
         text_content = self.text_area.get("1.0", "end").strip()
@@ -547,13 +562,26 @@ class WhisperApp:
             self.text_area.configure(state="disabled")
             
             self._set_status("Registrazione in corso...")
-            self.rec = KaldiRecognizer(self.model, 16000)
-            while not self.audio_queue.empty():
-                try:
-                    self.audio_queue.get_nowait()
-                    self.audio_queue.task_done()
-                except Exception:
-                    break
+            if self.model_combo.get().startswith("Whisper "):
+                self.active_audio_frames = []
+                self.frames_since_last_transcribe = 0
+                self.window_id = 0
+                self.transcribe_seq = 0
+                self.latest_seq_processed = 0
+                while not self.transcription_queue.empty():
+                    try:
+                        self.transcription_queue.get_nowait()
+                        self.transcription_queue.task_done()
+                    except Exception:
+                        break
+            else:
+                self.rec = KaldiRecognizer(self.model, 16000)
+                while not self.audio_queue.empty():
+                    try:
+                        self.audio_queue.get_nowait()
+                        self.audio_queue.task_done()
+                    except Exception:
+                        break
         else:
             self.start_btn.configure(text="▶ Avvia Trascrizione")
             self._set_btn_state(self.start_btn, "disabled", "success")
@@ -639,7 +667,18 @@ class WhisperApp:
                 self.root.after(0, self._update_visualizer, rms, threshold)
                 
                 if self.is_recording:
-                    self.audio_queue.put((resampled_data.tobytes(), rms))
+                    if self.model_combo.get().startswith("Whisper "):
+                        self.active_audio_frames.append(resampled_data.tobytes())
+                        self.frames_since_last_transcribe += 1
+                        if self.frames_since_last_transcribe >= 10:
+                            self.frames_since_last_transcribe = 0
+                            self._trigger_transcribe(is_final=False)
+                        if len(self.active_audio_frames) >= 150:
+                            self._trigger_transcribe(is_final=True)
+                            self.active_audio_frames = self.active_audio_frames[-30:]
+                            self.window_id += 1
+                    else:
+                        self.audio_queue.put((resampled_data.tobytes(), rms))
             except Exception as e:
                 print(f"TRACER: Monitor read error: {e}", flush=True)
                 import time
@@ -674,7 +713,12 @@ class WhisperApp:
         if not self.is_recording:
             return
         self.is_recording = False
-        self.audio_queue.put(None)
+        if self.model_combo.get().startswith("Whisper "):
+            if self.active_audio_frames:
+                self._trigger_transcribe(is_final=True)
+                self.active_audio_frames = []
+        else:
+            self.audio_queue.put(None)
         self._on_transcription_finished()
 
     def _on_transcription_finished(self):
@@ -731,7 +775,7 @@ class WhisperApp:
             self.lang_btn.configure(text="", image=self.img_it)
             self._set_status("Lingua: Italiano")
         
-        self._load_model_async(self.transcribe_lang)
+        self._load_model_async(self.model_combo.get(), self.transcribe_lang)
 
     def _transcription_worker(self):
         while True:
@@ -776,14 +820,108 @@ class WhisperApp:
             finally:
                 self.audio_queue.task_done()
 
+    def _trigger_transcribe(self, is_final=False):
+        if not self.active_audio_frames:
+            return
+        try:
+            frames_copy = list(self.active_audio_frames)
+            raw_bytes = b"".join(frames_copy)
+            fd, path = tempfile.mkstemp(suffix=".wav")
+            os.close(fd)
+            self.temp_files.add(path)
+            with wave.open(path, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
+                wf.setframerate(16000)
+                wf.writeframes(raw_bytes)
+            
+            self.transcribe_seq += 1
+            self.transcription_queue.put((path, is_final, self.window_id, self.transcribe_seq))
+        except Exception as e:
+            print(f"TRACER: _trigger_transcribe failed: {e}", flush=True)
+
+    def _whisper_transcription_worker(self):
+        while True:
+            item = self.transcription_queue.get()
+            if item is None:
+                break
+            wav_path, is_final, win_id, seq = item
+            
+            if seq < self.latest_seq_processed and not is_final:
+                try:
+                    if os.path.exists(wav_path):
+                        os.remove(wav_path)
+                        self.temp_files.discard(wav_path)
+                except Exception:
+                    pass
+                self.transcription_queue.task_done()
+                continue
+                
+            self.latest_seq_processed = max(self.latest_seq_processed, seq)
+            print(f"TRACER: Worker transcribing chunk {wav_path} (win: {win_id}, seq: {seq}, final: {is_final})", flush=True)
+            
+            try:
+                if self.model is not None:
+                    segments, info = self.model.transcribe(
+                        wav_path,
+                        beam_size=5,
+                        language=self.transcribe_lang,
+                        vad_filter=True,
+                        vad_parameters=dict(min_speech_duration_ms=300),
+                        condition_on_previous_text=False
+                    )
+                    text = "".join([segment.text for segment in segments])
+                    text = self._clean_hallucinations(text)
+                    print(f"TRACER: Transcribed: '{text}'", flush=True)
+                    self.root.after(0, self._update_transcription_text, text, is_final)
+                else:
+                    print("TRACER: self.model is None!", flush=True)
+            except Exception as e:
+                print(f"TRACER: Transcribe exception: {e}", flush=True)
+                self.root.after(0, self._set_status, f"Errore trascrizione: {e}")
+            finally:
+                try:
+                    if os.path.exists(wav_path):
+                        os.remove(wav_path)
+                        self.temp_files.discard(wav_path)
+                except Exception as e:
+                    print(f"TRACER: Temp file cleanup exception: {e}", flush=True)
+                self.transcription_queue.task_done()
+
     def _clean_hallucinations(self, text):
+        text_lower = text.lower()
+        blacklist = ["amara.org", "qtss", "sottotitoli", "subtitles", "thank you for watching", "grazie per averci seguito", "iscriviti", "comunità amara"]
+        for word in blacklist:
+            if word in text_lower:
+                return ""
+        return text
+
+    def _format_text(self, text, is_final):
+        if not text:
+            return ""
+        text = " ".join(text.split())
+        if not self.model_combo.get().startswith("Whisper "):
+            words = text.split()
+            if words:
+                words[0] = words[0].capitalize()
+                text = " ".join(words)
+        if is_final:
+            if text[-1] in {".", "?", "!"}:
+                return text
+            words_lower = text.lower().split()
+            question_words = {"chi", "che", "cosa", "come", "dove", "quando", "perché", "perche", "quale", "quanto", "è", "hai", "sono", "who", "what", "where", "when", "why", "how", "is", "are", "do", "does", "did", "can", "could", "would", "should"}
+            if words_lower and (words_lower[0] in question_words or (len(words_lower) > 1 and words_lower[1] in question_words)):
+                text += "?"
+            else:
+                text += "."
         return text
 
     def _update_transcription_text(self, text, is_final):
         self.text_area.configure(state="normal")
         self.text_area.delete("active_start", "end-1c")
         if text.strip():
-            self.text_area.insert("active_start", text.strip() + " ")
+            formatted = self._format_text(text.strip(), is_final)
+            self.text_area.insert("active_start", formatted + " ")
         self.text_area.see("end")
         if is_final:
             self.text_area.mark_set("active_start", "insert")
@@ -797,6 +935,7 @@ class WhisperApp:
         self.is_recording = False
         self.app_running = False
         self.audio_queue.put(None)
+        self.transcription_queue.put(None)
         try:
             if hasattr(self, 'stream') and self.stream.is_active():
                 self.stream.stop_stream()
@@ -804,6 +943,12 @@ class WhisperApp:
         except Exception:
             pass
         self.pa.terminate()
+        for wav_path in list(self.temp_files):
+            try:
+                if os.path.exists(wav_path):
+                    os.remove(wav_path)
+            except Exception:
+                pass
         self.root.destroy()
 
 if __name__ == "__main__":
