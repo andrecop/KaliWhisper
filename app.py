@@ -869,15 +869,17 @@ class WhisperApp:
         try:
             frames_copy = list(self.active_audio_frames)
             raw_bytes = b"".join(frames_copy)
-            fd, path = tempfile.mkstemp(suffix=".wav")
-            os.close(fd)
+            local_temp_dir = os.path.join(os.path.dirname(__file__), "temp_chunks")
+            os.makedirs(local_temp_dir, exist_ok=True)
+            import uuid
+            filename = f"chunk_{self.transcribe_seq + 1}_{uuid.uuid4().hex[:8]}.wav"
+            path = os.path.join(local_temp_dir, filename)
             self.temp_files.add(path)
             with wave.open(path, "wb") as wf:
                 wf.setnchannels(1)
                 wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
                 wf.setframerate(16000)
                 wf.writeframes(raw_bytes)
-            
             self.transcribe_seq += 1
             self.transcription_queue.put((path, is_final, self.window_id, self.transcribe_seq))
         except Exception as e:
@@ -1001,6 +1003,12 @@ class WhisperApp:
             try:
                 if os.path.exists(wav_path):
                     os.remove(wav_path)
+            except Exception:
+                pass
+        local_temp_dir = os.path.join(os.path.dirname(__file__), "temp_chunks")
+        if os.path.exists(local_temp_dir):
+            try:
+                shutil.rmtree(local_temp_dir)
             except Exception:
                 pass
         self.root.destroy()
