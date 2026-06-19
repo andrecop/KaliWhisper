@@ -667,6 +667,12 @@ class WhisperApp:
             except Exception:
                 pass
                 
+        import hashlib
+        if (hashlib.sha256(self.author.encode("utf-8")).hexdigest() != "66d5dac23437a733efda75193df7cda07e09c3f64ac6f8957952950cdcd985cc" or
+            hashlib.sha256(self.alias.encode("utf-8")).hexdigest() != "0b148c228fc2447144adddd20220be87d26339e6e72edd1a1dc3186e7e539a4a"):
+            import sys
+            sys.exit(1)
+                
         self.root.title(f"KaliWhisper v{self.version}")
         self.root.geometry("650x600")
         self.root.minsize(550, 480)
