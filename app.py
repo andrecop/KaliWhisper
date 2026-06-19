@@ -430,15 +430,28 @@ class FlagDropdown(ctk.CTkToplevel):
         if not (win_x <= x <= win_x + win_w and win_y <= y <= win_y + win_h):
             self.close()
             
-    def open(self, x, y, on_select):
+    def open(self, btn, on_select):
         self._on_select = on_select
         self.search_var.set("")
         self._populate_list()
-        self.geometry(f"250x300+{int(x)}+{int(y)}")
+        
+        x = btn.winfo_rootx()
+        btn_y = btn.winfo_rooty()
+        btn_h = btn.winfo_height()
+        
+        screen_height = self.winfo_screenheight()
+        dropdown_height = 300
+        
+        # If the dropdown overflows the screen bottom, open it upwards
+        if btn_y + btn_h + 2 + dropdown_height > screen_height - 40:
+            y = btn_y - dropdown_height - 2
+        else:
+            y = btn_y + btn_h + 2
+            
+        self.geometry(f"250x{dropdown_height}+{int(x)}+{int(y)}")
         self.deiconify()
         self.update()
         self.update_idletasks()
-        self.lift()
         self.focus_force()
         self.search_entry.focus()
         self.grab_set()
@@ -1329,9 +1342,7 @@ class WhisperApp:
 
     def _show_flag_dropdown(self):
         self._init_dropdowns()
-        x = self.lang_btn.winfo_rootx()
-        y = self.lang_btn.winfo_rooty() + self.lang_btn.winfo_height() + 2
-        self.lang_dropdown.open(x, y, self._on_language_selected)
+        self.lang_dropdown.open(self.lang_btn, self._on_language_selected)
 
     def _on_language_selected(self, selected_lang):
         self.transcribe_lang = selected_lang
@@ -1395,9 +1406,7 @@ class WhisperApp:
 
     def _show_target_flag_dropdown(self):
         self._init_dropdowns()
-        x = self.target_lang_btn.winfo_rootx()
-        y = self.target_lang_btn.winfo_rooty() + self.target_lang_btn.winfo_height() + 2
-        self.lang_dropdown.open(x, y, self._on_target_language_selected)
+        self.lang_dropdown.open(self.target_lang_btn, self._on_target_language_selected)
 
     def _on_target_language_selected(self, selected_lang):
         old_lang = self.target_lang
@@ -1447,9 +1456,7 @@ class WhisperApp:
 
     def _show_ui_flag_dropdown(self):
         self._init_dropdowns()
-        x = self.ui_lang_btn.winfo_rootx()
-        y = self.ui_lang_btn.winfo_rooty() + self.ui_lang_btn.winfo_height() + 2
-        self.lang_dropdown.open(x, y, self._on_ui_language_selected)
+        self.lang_dropdown.open(self.ui_lang_btn, self._on_ui_language_selected)
 
     def _on_ui_language_selected(self, selected_lang):
         self._update_ui_language(selected_lang)
