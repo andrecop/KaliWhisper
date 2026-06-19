@@ -652,7 +652,22 @@ tqdm.auto.tqdm = TkinterTqdm
 class WhisperApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("KaliWhisper")
+        
+        self.version = "1.0.0"
+        self.author = "Nome Autore"
+        self.alias = "Alias"
+        metadata_path = os.path.join(os.path.dirname(__file__), "metadata.json")
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                    self.version = meta.get("version", self.version)
+                    self.author = meta.get("author", self.author)
+                    self.alias = meta.get("alias", self.alias)
+            except Exception:
+                pass
+                
+        self.root.title(f"KaliWhisper v{self.version}")
         self.root.geometry("650x600")
         self.root.minsize(550, 480)
         self.root.configure(fg_color="#09090b")
