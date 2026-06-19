@@ -257,10 +257,24 @@ class WhisperApp:
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
         
+<<<<<<< HEAD
         ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 8))
         
         device_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30)
         device_border.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+=======
+        # Usiamo grid per posizionare precisamente left_sub e right_sub con i pesi corretti
+        device_frame.grid_columnconfigure(0, weight=7)
+        device_frame.grid_columnconfigure(1, weight=3)
+        
+        left_sub = ctk.CTkFrame(device_frame, fg_color="#09090b")
+        left_sub.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        
+        ctk.CTkLabel(left_sub, text="Seleziona Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(anchor=tk.W, pady=(0, 2))
+        
+        device_border = ctk.CTkFrame(left_sub, fg_color="#27272a", corner_radius=8, height=30)
+        device_border.pack(fill=tk.X, expand=True)
+>>>>>>> b343ff1492c8b6547eff35af001aa4f00e9a5a19
         device_border.pack_propagate(False)
         self.devices = []
         device_names = []
@@ -331,8 +345,19 @@ class WhisperApp:
                     break
         self.device_combo.set(selected_device)
 
+<<<<<<< HEAD
         status_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30, width=150)
         status_border.pack(side=tk.RIGHT, padx=(10, 0))
+=======
+        right_sub = ctk.CTkFrame(device_frame, fg_color="#09090b")
+        right_sub.grid(row=0, column=1, sticky="ew", padx=(10, 0))
+
+        # Placeholder per allineamento verticale senza testo "Stato Sistema"
+        ctk.CTkLabel(right_sub, text="", font=("Segoe UI", 11, "bold")).pack(anchor=tk.W, pady=(0, 2))
+
+        status_border = ctk.CTkFrame(right_sub, fg_color="#27272a", corner_radius=8, height=30)
+        status_border.pack(fill=tk.X, expand=True)
+>>>>>>> b343ff1492c8b6547eff35af001aa4f00e9a5a19
         status_border.pack_propagate(False)
 
         self.status_label = ctk.CTkLabel(
