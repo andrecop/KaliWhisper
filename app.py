@@ -414,7 +414,24 @@ class FlagDropdown(ctk.CTkToplevel):
             
         self.bind("<Button-1>", self._on_click_outside)
         self.bind("<Escape>", lambda e: self.close())
+        self.bind("<FocusOut>", self._on_focus_out)
         
+    def _on_focus_out(self, event):
+        self.after(10, self._check_focus)
+        
+    def _check_focus(self):
+        try:
+            focused = self.focus_get()
+            if focused:
+                parent = focused
+                while parent:
+                    if parent == self:
+                        return
+                    parent = parent.master
+            self.close()
+        except Exception:
+            pass
+
     def _populate_list(self):
         query = self.search_var.get().lower().strip()
         for row in self.rows:
@@ -467,15 +484,10 @@ class FlagDropdown(ctk.CTkToplevel):
         self.update_idletasks()
         self.focus_force()
         self.search_entry.focus()
-        self.grab_set()
         
         self._configure_bind_id = self.master.bind("<Configure>", lambda e: self.reposition(), add="+")
         
     def close(self):
-        try:
-            self.grab_release()
-        except Exception:
-            pass
         if getattr(self, "_configure_bind_id", None):
             try:
                 self.master.unbind("<Configure>", self._configure_bind_id)
