@@ -547,6 +547,7 @@ class WhisperApp:
         self.device_combo.configure(state="disabled")
         self._set_btn_state(self.delete_btn, "disabled", "danger")
         self._set_btn_state(self.update_btn, "disabled", "secondary")
+        self.text_area.configure(state="disabled")
         self._set_status("Registrazione in corso...")
         
         threading.Thread(target=self._recording_worker, daemon=True).start()
@@ -628,6 +629,7 @@ class WhisperApp:
         self._set_btn_state(self.stop_btn, "disabled", "secondary")
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
+        self.text_area.configure(state="normal")
         self._update_action_buttons()
         messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
 
@@ -652,7 +654,9 @@ class WhisperApp:
             self._set_status("Salvataggio annullato (testo vuoto)")
             self._set_btn_state(self.start_btn, "normal", "primary")
             self._set_btn_state(self.stop_btn, "disabled", "secondary")
-            self.model_combo.configure(state="readonly")
+            self.model_combo.configure(state="normal")
+            self.device_combo.configure(state="normal")
+            self.text_area.configure(state="normal")
             self._update_action_buttons()
             return
             
@@ -673,6 +677,7 @@ class WhisperApp:
         self._set_btn_state(self.stop_btn, "disabled", "secondary")
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
+        self.text_area.configure(state="normal")
         self._update_action_buttons()
 
     def _transcription_worker(self):
@@ -699,8 +704,10 @@ class WhisperApp:
                 self.transcription_queue.task_done()
 
     def _append_text(self, text):
+        self.text_area.configure(state="normal")
         self.text_area.insert("end", text + " ")
         self.text_area.see("end")
+        self.text_area.configure(state="disabled")
 
     def _on_closing(self):
         self.is_recording = False
