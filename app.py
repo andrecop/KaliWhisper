@@ -43,6 +43,9 @@ class WhisperApp:
         self.root.title("KaliWhisper - Live Transcription")
         self.root.geometry("650x550")
         self.root.minsize(500, 450)
+        self.root.configure(bg="#09090b")
+        
+        self._init_styles()
         
         self.model = None
         self.model_name = "base"
@@ -67,6 +70,45 @@ class WhisperApp:
         threading.Thread(target=self._transcription_worker, daemon=True).start()
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
+    def _init_styles(self):
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure("TFrame", background="#09090b")
+        style.configure("Labelframe", background="#18181b", foreground="#fafafa", bordercolor="#27272a", borderwidth=1)
+        style.configure("Labelframe.Label", background="#18181b", foreground="#fafafa", font=("Segoe UI", 10, "bold"))
+        
+        style.configure("TLabel", background="#09090b", foreground="#fafafa", font=("Segoe UI", 10))
+        style.configure("Card.TLabel", background="#18181b", foreground="#fafafa", font=("Segoe UI", 10))
+        
+        style.configure("Primary.TButton", background="#ffffff", foreground="#09090b", font=("Segoe UI", 10, "bold"), borderwidth=0, padding=8)
+        style.map("Primary.TButton",
+                  background=[("active", "#e4e4e7"), ("disabled", "#27272a")],
+                  foreground=[("disabled", "#a1a1aa")])
+                  
+        style.configure("Secondary.TButton", background="#27272a", foreground="#fafafa", font=("Segoe UI", 10), borderwidth=0, padding=8)
+        style.map("Secondary.TButton",
+                  background=[("active", "#3f3f46"), ("disabled", "#18181b")],
+                  foreground=[("disabled", "#52525b")])
+                  
+        style.configure("Danger.TButton", background="#7f1d1d", foreground="#fca5a5", font=("Segoe UI", 10), borderwidth=0, padding=8)
+        style.map("Danger.TButton",
+                  background=[("active", "#991b1b"), ("disabled", "#18181b")],
+                  foreground=[("disabled", "#52525b")])
+                  
+        style.configure("TCombobox", fieldbackground="#18181b", background="#27272a", foreground="#fafafa", bordercolor="#27272a", lightcolor="#27272a", darkcolor="#27272a")
+        style.map("TCombobox",
+                  fieldbackground=[("readonly", "#18181b")],
+                  background=[("readonly", "#27272a")],
+                  foreground=[("readonly", "#fafafa")])
+                  
+        style.configure("Horizontal.TProgressbar", background="#ffffff", troughcolor="#27272a", bordercolor="#27272a", lightcolor="#ffffff", darkcolor="#ffffff")
+        
+        self.root.option_add("*TCombobox*Listbox.background", "#18181b")
+        self.root.option_add("*TCombobox*Listbox.foreground", "#fafafa")
+        self.root.option_add("*TCombobox*Listbox.selectBackground", "#27272a")
+        self.root.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
+
     def _setup_ui(self):
         main_frame = ttk.Frame(self.root, padding="15")
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -74,41 +116,48 @@ class WhisperApp:
         model_frame = ttk.Frame(main_frame)
         model_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(model_frame, text="Seleziona Modello Whisper:", font=("Helvetica", 10, "bold")).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 10, "bold"), foreground="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
         self.model_combo = ttk.Combobox(model_frame, values=["tiny", "base", "small", "medium"], state="readonly", width=15)
         self.model_combo.set(self.model_name)
         self.model_combo.pack(side=tk.LEFT, padx=(0, 5))
         self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
         
-        self.download_btn = ttk.Button(model_frame, text="⬇ Scarica", command=self._download_selected_model)
-        self.delete_btn = ttk.Button(model_frame, text="🗑 Elimina", command=self._delete_selected_model)
-        self.update_btn = ttk.Button(model_frame, text="🔄 Aggiorna", command=self._update_selected_model)
+        self.download_btn = ttk.Button(model_frame, text="⬇ Scarica", command=self._download_selected_model, style="Secondary.TButton")
+        self.delete_btn = ttk.Button(model_frame, text="🗑 Elimina", command=self._delete_selected_model, style="Danger.TButton")
+        self.update_btn = ttk.Button(model_frame, text="🔄 Aggiorna", command=self._update_selected_model, style="Secondary.TButton")
         
         self.progress_frame = ttk.Frame(main_frame)
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(self.progress_frame, variable=self.progress_var, maximum=100)
+        self.progress_bar = ttk.Progressbar(self.progress_frame, variable=self.progress_var, maximum=100, style="Horizontal.TProgressbar")
         self.progress_bar.pack(fill=tk.X, expand=True)
         
         self.status_frame = ttk.LabelFrame(main_frame, text="Stato", padding="10")
         self.status_frame.pack(fill=tk.X, pady=(0, 10))
         
-        self.status_label = ttk.Label(self.status_frame, text="Inizializzazione...", font=("Helvetica", 10))
+        self.status_label = ttk.Label(self.status_frame, text="Inizializzazione...", style="Card.TLabel")
         self.status_label.pack(anchor=tk.W)
         
         text_frame = ttk.LabelFrame(main_frame, text="Trascrizione", padding="10")
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        self.text_area = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD, font=("Helvetica", 11))
+        self.text_area = scrolledtext.ScrolledText(
+            text_frame, wrap=tk.WORD, font=("Segoe UI", 11),
+            bg="#18181b", fg="#fafafa", insertbackground="#fafafa",
+            selectbackground="#27272a", selectforeground="#ffffff",
+            borderwidth=0, highlightthickness=1, highlightbackground="#27272a",
+            highlightcolor="#ffffff", padx=10, pady=10
+        )
         self.text_area.pack(fill=tk.BOTH, expand=True)
         
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X)
         
-        self.start_btn = ttk.Button(button_frame, text="▶ Avvia Trascrizione", command=self._start_recording)
+        self.start_btn = ttk.Button(button_frame, text="▶ Avvia Trascrizione", command=self._start_recording, style="Primary.TButton")
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        self.stop_btn = ttk.Button(button_frame, text="■ Ferma e Salva", command=self._stop_recording, state="disabled")
+        self.stop_btn = ttk.Button(button_frame, text="■ Ferma e Salva", command=self._stop_recording, state="disabled", style="Secondary.TButton")
         self.stop_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+
 
     def _set_status(self, text):
         self.status_label.config(text=text)
