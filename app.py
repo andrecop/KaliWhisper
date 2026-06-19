@@ -970,7 +970,7 @@ class WhisperApp:
     def _set_status(self, text):
         self.status_scroll_id = getattr(self, "status_scroll_id", 0) + 1
         scroll_id = self.status_scroll_id
-        max_len = 18
+        max_len = 65
         if len(text) <= max_len:
             self.status_label.configure(text=text)
             return
