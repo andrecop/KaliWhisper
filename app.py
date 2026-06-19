@@ -349,10 +349,10 @@ class FlagDropdown(ctk.CTkToplevel):
             if not query or query in lang["name"].lower() or query in lang["code"].lower():
                 filtered.append(lang)
                 
-        def load_batch(index):
+        def load_batch(index, first_sync=False):
             if self.populate_seq != current_seq:
                 return
-            batch_size = 5
+            batch_size = 15 if first_sync else 6
             for i in range(index, min(index + batch_size, len(filtered))):
                 lang = filtered[i]
                 name = lang["name"]
@@ -380,9 +380,9 @@ class FlagDropdown(ctk.CTkToplevel):
                 wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
                 
             if index + batch_size < len(filtered):
-                self.after(5, lambda: load_batch(index + batch_size))
+                self.after(5, lambda: load_batch(index + batch_size, False))
                 
-        load_batch(0)
+        load_batch(0, first_sync=True)
             
     def _on_click_outside(self, event):
         x, y = event.x_root, event.y_root
