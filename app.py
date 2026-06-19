@@ -132,6 +132,62 @@ class ShadcnDropdown(ctk.CTkToplevel):
             return self._font
         return None
 
+class FlagDropdown(ctk.CTkToplevel):
+    def __init__(self, master, img_it, img_en, on_select):
+        super().__init__(master)
+        self.withdraw()
+        self.overrideredirect(True)
+        self.configure(fg_color="#09090b")
+        
+        self.border_frame = ctk.CTkFrame(
+            self, fg_color="#18181b", border_color="#27272a", border_width=1, corner_radius=8
+        )
+        self.border_frame.pack(fill=tk.BOTH, expand=True)
+        
+        btn_it = ctk.CTkButton(
+            self.border_frame, text=" Italiano", image=img_it, compound="left", anchor="w",
+            fg_color="transparent", text_color="#fafafa",
+            hover_color="#27272a", font=("Segoe UI", 11),
+            height=28, corner_radius=6,
+            command=lambda: [on_select("it"), self.close()]
+        )
+        btn_it.pack(fill=tk.X, padx=4, pady=2)
+        
+        btn_en = ctk.CTkButton(
+            self.border_frame, text=" Inglese", image=img_en, compound="left", anchor="w",
+            fg_color="transparent", text_color="#fafafa",
+            hover_color="#27272a", font=("Segoe UI", 11),
+            height=28, corner_radius=6,
+            command=lambda: [on_select("en"), self.close()]
+        )
+        btn_en.pack(fill=tk.X, padx=4, pady=2)
+        
+        self.bind("<Button-1>", self._on_click_outside)
+        self.bind("<Escape>", lambda e: self.close())
+        
+    def _on_click_outside(self, event):
+        x, y = event.x_root, event.y_root
+        win_x = self.winfo_rootx()
+        win_y = self.winfo_rooty()
+        win_w = self.winfo_width()
+        win_h = self.winfo_height()
+        if not (win_x <= x <= win_x + win_w and win_y <= y <= win_y + win_h):
+            self.close()
+            
+    def open(self, x, y):
+        self.geometry(f"110x68+{int(x)}+{int(y)}")
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+        
+    def close(self):
+        try:
+            self.grab_release()
+        except Exception:
+            pass
+        self.withdraw()
+
 import customtkinter.windows.widgets.ctk_optionmenu as optmenu
 optmenu.DropdownMenu = ShadcnDropdown
 
@@ -334,21 +390,13 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=None, font=("Segoe UI", 10, "bold"), width=90)
-        lang_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=90)
-        lang_border.pack(side=tk.RIGHT, padx=2)
-        lang_border.pack_propagate(False)
-        
-        self.lang_combo = ctk.CTkOptionMenu(
-            lang_border, values=["Italiano", "Inglese"],
-            command=self._on_language_selected,
-            fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
-            text_color="#fafafa", font=("Segoe UI", 11),
-            dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
-            dropdown_hover_color="#27272a", dropdown_font=("Segoe UI", 11),
-            corner_radius=7
+        self.lang_btn = ctk.CTkButton(
+            self.model_frame, text=" ▾", image=self.img_it, compound="left",
+            command=self._show_flag_dropdown, width=64, height=30,
+            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
         )
-        self.lang_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
-        self.lang_combo.set("Italiano")
+        self.lang_btn.pack(side=tk.RIGHT, padx=2)
 
         self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
         self.dest_btn.pack(side=tk.RIGHT, padx=2)
@@ -604,9 +652,11 @@ class WhisperApp:
         if not self.is_recording and not is_transcribing:
             self.model_combo.configure(state="normal")
             self.device_combo.configure(state="normal")
+            self._set_btn_state(self.lang_btn, "normal", "secondary")
         else:
             self.model_combo.configure(state="disabled")
             self.device_combo.configure(state="disabled")
+            self._set_btn_state(self.lang_btn, "disabled", "secondary")
 
     def _toggle_recording(self):
         if not self.is_recording:
@@ -896,12 +946,19 @@ class WhisperApp:
             
         ConfirmDialog(self.root, "Conferma Reset", "Sei sicuro di voler cancellare tutta la trascrizione e registrazione correnti?", do_reset)
 
+    def _show_flag_dropdown(self):
+        x = self.lang_btn.winfo_rootx()
+        y = self.lang_btn.winfo_rooty() + self.lang_btn.winfo_height() + 2
+        dropdown = FlagDropdown(self.root, self.img_it, self.img_en, self._on_language_selected)
+        dropdown.open(x, y)
+
     def _on_language_selected(self, selected_lang):
-        if selected_lang == "Inglese":
-            self.transcribe_lang = "en"
+        self.transcribe_lang = selected_lang
+        if selected_lang == "en":
+            self.lang_btn.configure(image=self.img_en)
             self._set_status("Lingua: Inglese")
         else:
-            self.transcribe_lang = "it"
+            self.lang_btn.configure(image=self.img_it)
             self._set_status("Lingua: Italiano")
         
         self._load_model_async(self.model_combo.get(), self.transcribe_lang)
