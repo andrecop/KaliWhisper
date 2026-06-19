@@ -305,6 +305,7 @@ class WhisperApp:
         self.custom_dest = False
         self.transcribe_lang = "it"
         self.target_lang = "it"
+        self.ui_lang = "it"
         
         from PIL import Image
         from svglib.svglib import svg2rlg
@@ -370,7 +371,8 @@ class WhisperApp:
         self.model_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.model_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ctk.CTkLabel(self.model_frame, text="Motore di Trascrizione:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
+        self.model_label = ctk.CTkLabel(self.model_frame, text="Motore di Trascrizione:", font=("Segoe UI", 11, "bold"), text_color="#fafafa")
+        self.model_label.pack(side=tk.LEFT, padx=(0, 10))
         
         model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=130)
         model_border.pack(side=tk.LEFT, padx=(0, 8))
@@ -391,6 +393,20 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=None, font=("Segoe UI", 10, "bold"), width=90)
+        
+        self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
+        self.dest_btn.pack(side=tk.RIGHT, padx=2)
+        self._set_btn_state(self.dest_btn, "normal", "secondary")
+
+        self.ui_lang_btn = ctk.CTkButton(
+            self.model_frame, text="UI ▾", image=self.img_it, compound="left",
+            command=self._show_ui_flag_dropdown, width=68, height=30,
+            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
+        )
+        self.ui_lang_btn.pack(side=tk.RIGHT, padx=2)
+        self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
+
         self.target_lang_btn = ctk.CTkButton(
             self.model_frame, text=" ▾", image=self.img_it, compound="left",
             command=self._show_target_flag_dropdown, width=64, height=30,
@@ -409,15 +425,12 @@ class WhisperApp:
             text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
         )
         self.lang_btn.pack(side=tk.RIGHT, padx=2)
-
-        self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
-        self.dest_btn.pack(side=tk.RIGHT, padx=2)
-        self._set_btn_state(self.dest_btn, "normal", "secondary")
         
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
         
-        ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 8))
+        self.device_label = ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa")
+        self.device_label.pack(side=tk.LEFT, padx=(0, 8))
         
         device_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30)
         device_border.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
@@ -496,7 +509,8 @@ class WhisperApp:
         text_frame = ctk.CTkFrame(main_frame, fg_color="#18181b", border_color="#27272a", border_width=1)
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
-        ctk.CTkLabel(text_frame, text="Trascrizione", font=("Segoe UI", 10, "bold"), text_color="#fafafa").pack(anchor=tk.W, padx=15, pady=(10, 4))
+        self.text_label = ctk.CTkLabel(text_frame, text="Trascrizione", font=("Segoe UI", 10, "bold"), text_color="#fafafa")
+        self.text_label.pack(anchor=tk.W, padx=15, pady=(10, 4))
         
         self.text_area = ctk.CTkTextbox(
             text_frame, font=("Segoe UI", 12),
@@ -665,10 +679,14 @@ class WhisperApp:
             self.model_combo.configure(state="normal")
             self.device_combo.configure(state="normal")
             self._set_btn_state(self.lang_btn, "normal", "secondary")
+            self._set_btn_state(self.target_lang_btn, "normal", "secondary")
+            self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
         else:
             self.model_combo.configure(state="disabled")
             self.device_combo.configure(state="disabled")
             self._set_btn_state(self.lang_btn, "disabled", "secondary")
+            self._set_btn_state(self.target_lang_btn, "disabled", "secondary")
+            self._set_btn_state(self.ui_lang_btn, "disabled", "secondary")
 
     def _toggle_recording(self):
         if not self.is_recording:
@@ -692,10 +710,16 @@ class WhisperApp:
             self.text_area.configure(state="normal")
             existing_text = self.text_area.get("1.0", "end").strip()
             now_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            if existing_text:
-                self.text_area.insert("end", f"\n\n------- continua {now_str} -------\n\n")
+            if self.ui_lang == "en":
+                if existing_text:
+                    self.text_area.insert("end", f"\n\n------- continued {now_str} -------\n\n")
+                else:
+                    self.text_area.insert("end", f"------- started {now_str} -------\n\n")
             else:
-                self.text_area.insert("end", f"------- {now_str} -------\n\n")
+                if existing_text:
+                    self.text_area.insert("end", f"\n\n------- continua {now_str} -------\n\n")
+                else:
+                    self.text_area.insert("end", f"------- inizio {now_str} -------\n\n")
             self.text_area.see("end")
             
             self.text_area.mark_set("active_start", "insert")
@@ -1022,6 +1046,76 @@ class WhisperApp:
             except Exception as e:
                 self.root.after(0, self._set_status, f"Errore traduzione: {e}")
         threading.Thread(target=translate_task, daemon=True).start()
+
+    def _show_ui_flag_dropdown(self):
+        x = self.ui_lang_btn.winfo_rootx()
+        y = self.ui_lang_btn.winfo_rooty() + self.ui_lang_btn.winfo_height() + 2
+        dropdown = FlagDropdown(self.root, self.img_it, self.img_en, self._on_ui_language_selected)
+        dropdown.open(x, y)
+
+    def _on_ui_language_selected(self, selected_lang):
+        self._update_ui_language(selected_lang)
+
+    def _update_ui_language(self, lang_code):
+        self.ui_lang = lang_code
+        if lang_code == "en":
+            self.ui_lang_btn.configure(image=self.img_en)
+            self.model_label.configure(text="Transcription Engine:")
+            self.dest_btn.configure(text="📂 Destination")
+            self.device_label.configure(text="Audio Input:")
+            self.text_label.configure(text="Transcription")
+            
+            if self.is_recording:
+                self.start_btn.configure(text="■ Stop Transcription")
+            else:
+                self.start_btn.configure(text="▶ Start Transcription")
+                
+            if getattr(self, "is_playing", False):
+                self.play_btn.configure(text="■ Stop Listening")
+            else:
+                self.play_btn.configure(text="🔊 Listen to Transcription")
+                
+            self.save_btn.configure(text="💾 Save Transcription")
+            self.save_audio_btn.configure(text="🎙️ Save Audio")
+            self.save_and_close_btn.configure(text="💾 Save All & Close on Finish")
+            
+            self.text_area.configure(state="normal")
+            content = self.text_area.get("1.0", "end")
+            new_content = content.replace("------- continua ", "------- continued ").replace("------- inizio ", "------- started ")
+            self.text_area.delete("1.0", "end")
+            self.text_area.insert("1.0", new_content.strip())
+            self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+            
+            self._set_status("UI Language: English")
+        else:
+            self.ui_lang_btn.configure(image=self.img_it)
+            self.model_label.configure(text="Motore di Trascrizione:")
+            self.dest_btn.configure(text="📂 Destinazione")
+            self.device_label.configure(text="Ingresso Audio:")
+            self.text_label.configure(text="Trascrizione")
+            
+            if self.is_recording:
+                self.start_btn.configure(text="■ Ferma Trascrizione")
+            else:
+                self.start_btn.configure(text="▶ Avvia Trascrizione")
+                
+            if getattr(self, "is_playing", False):
+                self.play_btn.configure(text="■ Ferma Ascolto")
+            else:
+                self.play_btn.configure(text="🔊 Ascolta Trascrizione")
+                
+            self.save_btn.configure(text="💾 Salva Trascrizione")
+            self.save_audio_btn.configure(text="🎙️ Salva Audio")
+            self.save_and_close_btn.configure(text="💾 Salva tutto e Chiudi al termine")
+            
+            self.text_area.configure(state="normal")
+            content = self.text_area.get("1.0", "end")
+            new_content = content.replace("------- continued ", "------- continua ").replace("------- started ", "------- inizio ")
+            self.text_area.delete("1.0", "end")
+            self.text_area.insert("1.0", new_content.strip())
+            self.text_area.configure(state="normal" if not self.is_recording else "disabled")
+            
+            self._set_status("Lingua UI: Italiano")
 
     def _transcription_worker(self):
         while True:
