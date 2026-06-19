@@ -1,20 +1,48 @@
 import os
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+import logging
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+import warnings
+warnings.filterwarnings("ignore")
 import wave
 import queue
 import threading
 import tempfile
+import shutil
 import pyaudio
+import tqdm
+import tqdm.auto
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 from datetime import datetime
 from faster_whisper import WhisperModel
 
+class TkinterTqdm(tqdm.tqdm):
+    callback = None
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if TkinterTqdm.callback:
+            desc = kwargs.get("desc", "Download")
+            TkinterTqdm.callback("init", self.total, desc)
+            
+    def update(self, n=1):
+        res = super().update(n)
+        if TkinterTqdm.callback:
+            TkinterTqdm.callback("update", n, None)
+        return res
+        
+    def close(self):
+        super().close()
+        if TkinterTqdm.callback:
+            TkinterTqdm.callback("close", None, None)
+
 class WhisperApp:
     def __init__(self, root):
         self.root = root
         self.root.title("KaliWhisper - Live Transcription")
-        self.root.geometry("600x500")
-        self.root.minsize(450, 400)
+        self.root.geometry("650x550")
+        self.root.minsize(500, 450)
         
         self.model = None
         self.model_name = "base"
@@ -25,9 +53,17 @@ class WhisperApp:
         self.pa = pyaudio.PyAudio()
         self.stream = None
         
-        self._setup_ui()
-        self._initial_load()
+        self.current_file_total = 0
+        self.current_file_progress = 0
         
+        self._setup_ui()
+        self._update_action_buttons()
+        
+        if self._is_model_downloaded(self.model_name):
+            self._load_model_async(self.model_name)
+        else:
+            self._set_status(f"Modello {self.model_name} non scaricato. Clicca su '⬇ Scarica'.")
+            
         threading.Thread(target=self._transcription_worker, daemon=True).start()
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
@@ -39,15 +75,24 @@ class WhisperApp:
         model_frame.pack(fill=tk.X, pady=(0, 10))
         
         ttk.Label(model_frame, text="Seleziona Modello Whisper:", font=("Helvetica", 10, "bold")).pack(side=tk.LEFT, padx=(0, 10))
-        self.model_combo = ttk.Combobox(model_frame, values=["tiny", "base", "small", "medium"], state="readonly")
+        self.model_combo = ttk.Combobox(model_frame, values=["tiny", "base", "small", "medium"], state="readonly", width=15)
         self.model_combo.set(self.model_name)
-        self.model_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.model_combo.pack(side=tk.LEFT, padx=(0, 5))
         self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
         
-        status_frame = ttk.LabelFrame(main_frame, text="Stato", padding="10")
-        status_frame.pack(fill=tk.X, pady=(0, 10))
+        self.download_btn = ttk.Button(model_frame, text="⬇ Scarica", command=self._download_selected_model)
+        self.delete_btn = ttk.Button(model_frame, text="🗑 Elimina", command=self._delete_selected_model)
+        self.update_btn = ttk.Button(model_frame, text="🔄 Aggiorna", command=self._update_selected_model)
         
-        self.status_label = ttk.Label(status_frame, text="Inizializzazione...", font=("Helvetica", 10))
+        self.progress_frame = ttk.Frame(main_frame)
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(self.progress_frame, variable=self.progress_var, maximum=100)
+        self.progress_bar.pack(fill=tk.X, expand=True)
+        
+        self.status_frame = ttk.LabelFrame(main_frame, text="Stato", padding="10")
+        self.status_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        self.status_label = ttk.Label(self.status_frame, text="Inizializzazione...", font=("Helvetica", 10))
         self.status_label.pack(anchor=tk.W)
         
         text_frame = ttk.LabelFrame(main_frame, text="Trascrizione", padding="10")
@@ -68,43 +113,95 @@ class WhisperApp:
     def _set_status(self, text):
         self.status_label.config(text=text)
 
-    def _initial_load(self):
-        self.model_combo.config(state="disabled")
-        self.start_btn.config(state="disabled")
-        self._set_status(f"Caricamento modello {self.model_name}...")
-        
-        def load_task():
+    def _is_model_downloaded(self, model_name):
+        model_dir = os.path.join(os.path.dirname(__file__), "models")
+        repo_id = f"Systran/faster-whisper-{model_name}"
+        folder_name = f"models--{repo_id.replace('/', '--')}"
+        path = os.path.join(model_dir, folder_name, "snapshots")
+        if os.path.exists(path):
             try:
-                self.model = WhisperModel(self.model_name, device="cpu", compute_type="int8")
-                self.root.after(0, self._on_model_loaded)
-            except Exception as e:
-                self.root.after(0, self._on_model_load_failed, e)
-                
-        threading.Thread(target=load_task, daemon=True).start()
+                for sub in os.listdir(path):
+                    sub_path = os.path.join(path, sub)
+                    if os.path.isdir(sub_path):
+                        if os.path.isfile(os.path.join(sub_path, "model.bin")):
+                            return True
+            except Exception:
+                pass
+        return False
 
-    def _on_model_loaded(self):
-        self.model_combo.config(state="readonly")
-        self.start_btn.config(state="normal")
-        self._set_status("In attesa...")
+    def _update_action_buttons(self):
+        model_name = self.model_combo.get()
+        downloaded = self._is_model_downloaded(model_name)
+        
+        self.update_btn.pack_forget()
+        
+        if downloaded:
+            self.download_btn.pack_forget()
+            self.delete_btn.pack(side=tk.LEFT, padx=2)
+            self.delete_btn.config(state="normal")
+            if self.model is not None and self.model_name == model_name:
+                self.start_btn.config(state="normal")
+            else:
+                self.start_btn.config(state="disabled")
+            self._check_for_updates_async(model_name)
+        else:
+            self.delete_btn.pack_forget()
+            self.download_btn.pack(side=tk.LEFT, padx=2)
+            self.download_btn.config(state="normal")
+            self.start_btn.config(state="disabled")
 
-    def _on_model_load_failed(self, error):
-        self.model_combo.config(state="readonly")
-        self.start_btn.config(state="disabled")
-        self._set_status(f"Errore caricamento modello: {error}")
-        messagebox.showerror("Errore", f"Impossibile caricare il modello Whisper: {error}")
+    def _check_for_updates_async(self, model_name):
+        def check_task():
+            model_dir = os.path.join(os.path.dirname(__file__), "models")
+            repo_id = f"Systran/faster-whisper-{model_name}"
+            folder_name = f"models--{repo_id.replace('/', '--')}"
+            snapshots_path = os.path.join(model_dir, folder_name, "snapshots")
+            if not os.path.exists(snapshots_path):
+                return
+            try:
+                from huggingface_hub import model_info
+                info = model_info(repo_id, timeout=3)
+                latest_sha = info.sha
+                if latest_sha:
+                    local_sha_path = os.path.join(snapshots_path, latest_sha)
+                    if not os.path.exists(local_sha_path):
+                        self.root.after(0, lambda: self._show_update_button_if_selected(model_name))
+            except Exception:
+                pass
+        threading.Thread(target=check_task, daemon=True).start()
+
+    def _show_update_button_if_selected(self, checked_model):
+        if self.model_combo.get() == checked_model:
+            self.update_btn.pack(side=tk.LEFT, padx=2)
+            self.update_btn.config(state="normal")
+
 
     def _on_model_selected(self, event):
         new_model = self.model_combo.get()
-        if new_model != self.model_name:
-            self._change_model(new_model)
+        self._update_action_buttons()
+        
+        if self._is_model_downloaded(new_model):
+            if self.model_name != new_model or self.model is None:
+                self._load_model_async(new_model)
+            else:
+                self._set_status("Modello pronto ed in memoria.")
+        else:
+            if self.is_recording:
+                self._stop_recording_action()
+            if self.model is not None:
+                del self.model
+                import gc
+                gc.collect()
+                self.model = None
+            self.model_name = new_model
+            self._set_status(f"Modello {new_model} non scaricato. Clicca su '⬇ Scarica'.")
 
-    def _change_model(self, new_model):
-        if self.is_recording:
-            self._stop_recording_action()
-            
+    def _load_model_async(self, model_name):
         self.model_combo.config(state="disabled")
         self.start_btn.config(state="disabled")
-        self._set_status(f"Caricamento modello {new_model}...")
+        self.delete_btn.config(state="disabled")
+        self.update_btn.config(state="disabled")
+        self._set_status(f"Caricamento modello {model_name}...")
         
         def load_task():
             try:
@@ -113,13 +210,135 @@ class WhisperApp:
                     import gc
                     gc.collect()
                     self.model = None
-                self.model = WhisperModel(new_model, device="cpu", compute_type="int8")
-                self.model_name = new_model
+                
+                model_dir = os.path.join(os.path.dirname(__file__), "models")
+                self.model = WhisperModel(model_name, device="cpu", compute_type="int8", download_root=model_dir)
+                self.model_name = model_name
                 self.root.after(0, self._on_model_loaded)
             except Exception as e:
                 self.root.after(0, self._on_model_load_failed, e)
                 
         threading.Thread(target=load_task, daemon=True).start()
+
+    def _on_model_loaded(self):
+        self.model_combo.config(state="readonly")
+        self._update_action_buttons()
+        self._set_status("In attesa...")
+
+    def _on_model_load_failed(self, error):
+        self.model_combo.config(state="readonly")
+        self._update_action_buttons()
+        self._set_status(f"Errore caricamento modello: {error}")
+        messagebox.showerror("Errore", f"Impossibile caricare il modello Whisper: {error}")
+
+    def _download_selected_model(self):
+        model_name = self.model_combo.get()
+        self.model_combo.config(state="disabled")
+        self.download_btn.config(state="disabled")
+        self._set_status(f"Avvio download modello {model_name}...")
+        self._download_model_thread(model_name)
+
+    def _download_model_thread(self, model_name):
+        self.progress_frame.pack(fill=tk.X, pady=(0, 10), after=self.model_combo.master)
+        
+        def download_task():
+            model_dir = os.path.join(os.path.dirname(__file__), "models")
+            original_tqdm = tqdm.tqdm
+            original_auto_tqdm = tqdm.auto.tqdm
+            tqdm.tqdm = TkinterTqdm
+            tqdm.auto.tqdm = TkinterTqdm
+            TkinterTqdm.callback = self._tqdm_callback
+            try:
+                from faster_whisper.utils import download_model
+                download_model(model_name, cache_dir=model_dir)
+                self.root.after(0, self._on_download_success, model_name)
+            except Exception as e:
+                self.root.after(0, self._on_download_failed, model_name, e)
+            finally:
+                tqdm.tqdm = original_tqdm
+                tqdm.auto.tqdm = original_auto_tqdm
+                TkinterTqdm.callback = None
+                self.root.after(0, self.progress_frame.pack_forget)
+                
+        threading.Thread(target=download_task, daemon=True).start()
+
+    def _tqdm_callback(self, action, value, desc):
+        if action == "init":
+            self.current_file_total = value or 0
+            self.current_file_progress = 0
+            if desc:
+                self.root.after(0, self._set_status, f"Download: {desc}")
+            if self.current_file_total > 0:
+                self.root.after(0, lambda: self.progress_bar.config(maximum=self.current_file_total, mode="determinate"))
+            else:
+                self.root.after(0, lambda: self.progress_bar.config(mode="indeterminate"))
+                self.root.after(0, self.progress_bar.start)
+        elif action == "update":
+            if self.current_file_total > 0:
+                self.current_file_progress += value
+                self.root.after(0, lambda: self.progress_var.set(self.current_file_progress))
+        elif action == "close":
+            self.root.after(0, self.progress_bar.stop)
+            self.root.after(0, lambda: self.progress_var.set(0))
+
+    def _on_download_success(self, model_name):
+        self.model_combo.config(state="readonly")
+        self._update_action_buttons()
+        self._load_model_async(model_name)
+
+    def _on_download_failed(self, model_name, error):
+        self.model_combo.config(state="readonly")
+        self._update_action_buttons()
+        self._set_status(f"Download fallito: {error}")
+        messagebox.showerror("Errore", f"Impossibile scaricare il modello: {error}")
+
+    def _delete_selected_model(self):
+        model_name = self.model_combo.get()
+        if not messagebox.askyesno("Conferma", f"Sei sicuro di voler eliminare il modello {model_name} dal disco?"):
+            return
+            
+        if self.is_recording:
+            self._stop_recording_action()
+            
+        if self.model_name == model_name and self.model is not None:
+            del self.model
+            import gc
+            gc.collect()
+            self.model = None
+            self.start_btn.config(state="disabled")
+            
+        model_dir = os.path.join(os.path.dirname(__file__), "models")
+        repo_id = f"Systran/faster-whisper-{model_name}"
+        folder_name = f"models--{repo_id.replace('/', '--')}"
+        path = os.path.join(model_dir, folder_name)
+        
+        try:
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            self._set_status(f"Modello {model_name} eliminato.")
+            self._update_action_buttons()
+        except PermissionError:
+            self._set_status(f"Modello {model_name} bloccato in memoria.")
+            messagebox.showwarning(
+                "Eliminazione Parziale",
+                "Il modello è attualmente caricato e bloccato in memoria dal processo.\n"
+                "Per eliminarlo completamente, riavvia l'applicazione e clicca su Elimina senza caricarlo."
+            )
+            self._update_action_buttons()
+        except Exception as e:
+            self._set_status(f"Errore eliminazione: {e}")
+            messagebox.showerror("Errore", f"Impossibile eliminare il modello: {e}")
+
+    def _update_selected_model(self):
+        model_name = self.model_combo.get()
+        if self.is_recording:
+            self._stop_recording_action()
+            
+        self.model_combo.config(state="disabled")
+        self.delete_btn.config(state="disabled")
+        self.update_btn.config(state="disabled")
+        self._set_status(f"Verifica aggiornamenti modello {model_name}...")
+        self._download_model_thread(model_name)
 
     def _start_recording(self):
         if self.model is None:
@@ -130,6 +349,8 @@ class WhisperApp:
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.model_combo.config(state="disabled")
+        self.delete_btn.config(state="disabled")
+        self.update_btn.config(state="disabled")
         self._set_status("Registrazione in corso...")
         
         threading.Thread(target=self._recording_worker, daemon=True).start()
@@ -201,6 +422,7 @@ class WhisperApp:
         self.start_btn.config(state="normal")
         self.stop_btn.config(state="disabled")
         self.model_combo.config(state="readonly")
+        self._update_action_buttons()
         messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
 
     def _stop_recording(self):
@@ -225,6 +447,7 @@ class WhisperApp:
             self.start_btn.config(state="normal")
             self.stop_btn.config(state="disabled")
             self.model_combo.config(state="readonly")
+            self._update_action_buttons()
             return
             
         filename = f"trascrizione_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -243,6 +466,7 @@ class WhisperApp:
         self.start_btn.config(state="normal")
         self.stop_btn.config(state="disabled")
         self.model_combo.config(state="readonly")
+        self._update_action_buttons()
 
     def _transcription_worker(self):
         while True:
