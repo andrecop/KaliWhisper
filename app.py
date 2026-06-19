@@ -549,7 +549,7 @@ class WhisperApp:
             text="💾 Salva tutto e Chiudi al termine", 
             command=self._save_all_and_close_on_finish, 
             font=("Segoe UI", 11, "bold"), 
-            width=500,
+            width=510,
             height=38, 
             fg_color="#18181b", 
             border_color="#27272a", 
