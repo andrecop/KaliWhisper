@@ -331,8 +331,6 @@ class FlagDropdown(ctk.CTkToplevel):
         )
         self.scroll_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 6))
         
-        self._populate_list()
-        
         self.bind("<Button-1>", self._on_click_outside)
         self.bind("<Escape>", lambda e: self.close())
         
@@ -379,6 +377,7 @@ class FlagDropdown(ctk.CTkToplevel):
                 )
                 wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
                 
+            self.update_idletasks()
             if index + batch_size < len(filtered):
                 self.after(5, lambda: load_batch(index + batch_size, False))
                 
@@ -398,6 +397,7 @@ class FlagDropdown(ctk.CTkToplevel):
         self.geometry(f"250x300+{int(x)}+{int(y)}")
         self.deiconify()
         self.update_idletasks()
+        self._populate_list()
         self.lift()
         self.focus_force()
         self.search_entry.focus()
