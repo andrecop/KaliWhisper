@@ -235,6 +235,13 @@ class WhisperApp:
         
         self.devices = []
         device_names = []
+        default_device_name = None
+        try:
+            default_info = self.pa.get_default_input_device_info()
+            default_device_name = default_info.get('name')
+        except Exception:
+            pass
+
         try:
             info = self.pa.get_host_api_info_by_index(0)
             numdevices = info.get('deviceCount', 0)
@@ -259,7 +266,11 @@ class WhisperApp:
             corner_radius=7
         )
         self.device_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
-        self.device_combo.set(device_names[0])
+        
+        if default_device_name and default_device_name in device_names:
+            self.device_combo.set(default_device_name)
+        else:
+            self.device_combo.set(device_names[0])
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
