@@ -255,13 +255,38 @@ class WhisperApp:
             pass
 
         try:
-            info = self.pa.get_host_api_info_by_index(0)
-            numdevices = info.get('deviceCount', 0)
-            for i in range(0, numdevices):
-                device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
-                if device_info.get('maxInputChannels', 0) > 0:
-                    self.devices.append((i, device_info.get('name')))
-                    device_names.append(device_info.get('name'))
+            seen_names = set()
+            for h in range(self.pa.get_host_api_count()):
+                try:
+                    info = self.pa.get_host_api_info_by_index(h)
+                    numdevices = info.get('deviceCount', 0)
+                    for i in range(0, numdevices):
+                        device_info = self.pa.get_device_info_by_host_api_device_index(h, i)
+                        if device_info.get('maxInputChannels', 0) > 0:
+                            name = device_info.get('name')
+                            is_duplicate = False
+                            for existing_name in list(seen_names):
+                                if name == existing_name:
+                                    is_duplicate = True
+                                    break
+                                if name.startswith(existing_name) and len(name) > len(existing_name):
+                                    seen_names.remove(existing_name)
+                                    if existing_name in device_names:
+                                        idx_to_remove = device_names.index(existing_name)
+                                        device_names.pop(idx_to_remove)
+                                        self.devices.pop(idx_to_remove)
+                                    break
+                                if existing_name.startswith(name) and len(existing_name) > len(name):
+                                    is_duplicate = True
+                                    break
+                                    
+                            if not is_duplicate:
+                                global_idx = device_info.get('index')
+                                self.devices.append((global_idx, name))
+                                device_names.append(name)
+                                seen_names.add(name)
+                except Exception:
+                    pass
         except Exception:
             pass
             
@@ -279,10 +304,13 @@ class WhisperApp:
         )
         self.device_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         
-        if default_device_name and default_device_name in device_names:
-            self.device_combo.set(default_device_name)
-        else:
-            self.device_combo.set(device_names[0])
+        selected_device = device_names[0]
+        if default_device_name:
+            for name in device_names:
+                if name == default_device_name or name.startswith(default_device_name) or default_device_name.startswith(name):
+                    selected_device = name
+                    break
+        self.device_combo.set(selected_device)
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
