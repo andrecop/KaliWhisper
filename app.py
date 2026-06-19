@@ -69,10 +69,20 @@ class ShadcnDropdown(ctk.CTkToplevel):
             
     def open(self, x, y):
         parent_width = self.master.winfo_width()
-        max_len = max(len(str(val)) for val in self._values) if self._values else 0
-        width = min(500, max(parent_width, int(max_len * 8.5 + 40)))
+        import tkinter.font as tkfont
+        if isinstance(self._font, tuple) and len(self._font) >= 2:
+            font_obj = tkfont.Font(family=self._font[0], size=self._font[1])
+        elif hasattr(self._font, "cget"):
+            try:
+                font_obj = tkfont.Font(family=self._font.cget("family"), size=self._font.cget("size"))
+            except Exception:
+                font_obj = tkfont.nametofont("TkDefaultFont")
+        else:
+            font_obj = tkfont.nametofont("TkDefaultFont")
+            
+        max_text_width = max([font_obj.measure(val) + 40 for val in self._values] + [parent_width])
         height = len(self._values) * 32 + 8
-        self.geometry(f"{width}x{height}+{int(x)}+{int(y)}")
+        self.geometry(f"{max_text_width}x{height}+{int(x)}+{int(y)}")
         self.deiconify()
         self.lift()
         self.focus_force()
@@ -244,33 +254,12 @@ class WhisperApp:
         except Exception:
             pass
 
-        best_host_api = None
         try:
-            api_count = self.pa.get_host_api_count()
-            api_names = [self.pa.get_host_api_info_by_index(i).get('name') for i in range(api_count)]
-            if sys.platform.startswith("win"):
-                for preferred in ["Windows WASAPI", "Windows DirectSound", "MME"]:
-                    if preferred in api_names:
-                        api_idx = api_names.index(preferred)
-                        has_input = False
-                        for i in range(self.pa.get_device_count()):
-                            d_info = self.pa.get_device_info_by_index(i)
-                            if d_info.get('hostApi') == api_idx and d_info.get('maxInputChannels', 0) > 0:
-                                has_input = True
-                                break
-                        if has_input:
-                            best_host_api = api_idx
-                            break
-        except Exception:
-            pass
-
-        try:
-            numdevices = self.pa.get_device_count()
+            info = self.pa.get_host_api_info_by_index(0)
+            numdevices = info.get('deviceCount', 0)
             for i in range(0, numdevices):
-                device_info = self.pa.get_device_info_by_index(i)
+                device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
                 if device_info.get('maxInputChannels', 0) > 0:
-                    if best_host_api is not None and device_info.get('hostApi') != best_host_api:
-                        continue
                     self.devices.append((i, device_info.get('name')))
                     device_names.append(device_info.get('name'))
         except Exception:
@@ -290,22 +279,8 @@ class WhisperApp:
         )
         self.device_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         
-        selected_device = None
-        if default_device_name:
-            for name in device_names:
-                if name == default_device_name:
-                    selected_device = name
-                    break
-            if not selected_device:
-                def_clean = default_device_name.strip().lower()
-                for name in device_names:
-                    name_clean = name.strip().lower()
-                    if def_clean.startswith(name_clean[:20]) or name_clean.startswith(def_clean[:20]):
-                        selected_device = name
-                        break
-                        
-        if selected_device:
-            self.device_combo.set(selected_device)
+        if default_device_name and default_device_name in device_names:
+            self.device_combo.set(default_device_name)
         else:
             self.device_combo.set(device_names[0])
         
