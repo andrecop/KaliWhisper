@@ -1,3 +1,5 @@
 /models
 /scratch
 /__pycache__
+/build
+/dist
