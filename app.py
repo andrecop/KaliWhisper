@@ -380,14 +380,26 @@ class FlagDropdown(ctk.CTkToplevel):
             btn_frame.pack_propagate(False)
             
             def on_enter(e, f=btn_frame):
-                f.configure(bg="#27272a")
+                try:
+                    f['bg'] = "#27272a"
+                except Exception:
+                    pass
                 for child in f.winfo_children():
-                    child.configure(bg="#27272a")
+                    try:
+                        child['bg'] = "#27272a"
+                    except Exception:
+                        pass
                 
             def on_leave(e, f=btn_frame):
-                f.configure(bg="#18181b")
+                try:
+                    f['bg'] = "#18181b"
+                except Exception:
+                    pass
                 for child in f.winfo_children():
-                    child.configure(bg="#18181b")
+                    try:
+                        child['bg'] = "#18181b"
+                    except Exception:
+                        pass
                 
             def on_click(e, c=code):
                 if self._on_select:
@@ -579,21 +591,26 @@ class TkinterTqdm(tqdm.tqdm):
     callback = None
     
     def __init__(self, *args, **kwargs):
+        self.n_custom = 0
         super().__init__(*args, **kwargs)
         if TkinterTqdm.callback:
             desc = kwargs.get("desc", "Download")
-            TkinterTqdm.callback("init", self.total, desc)
+            TkinterTqdm.callback("init", self, desc)
             
     def update(self, n=1):
+        self.n_custom += n
         res = super().update(n)
         if TkinterTqdm.callback:
-            TkinterTqdm.callback("update", n, None)
+            TkinterTqdm.callback("update", self, None)
         return res
         
     def close(self):
         super().close()
         if TkinterTqdm.callback:
-            TkinterTqdm.callback("close", None, None)
+            TkinterTqdm.callback("close", self, None)
+
+tqdm.tqdm = TkinterTqdm
+tqdm.auto.tqdm = TkinterTqdm
 
 class WhisperApp:
     def __init__(self, root):
@@ -861,6 +878,9 @@ class WhisperApp:
         status_border.pack(fill=tk.X, expand=True)
         status_border.pack_propagate(False)
 
+        self.status_fill = ctk.CTkFrame(status_border, fg_color="#1e3a8a", corner_radius=7, height=28)
+        self.status_fill.place(x=1, y=1, relwidth=0.0, relheight=0.9)
+
         self.status_label = ctk.CTkLabel(
             status_border, text="Inizializzazione...", font=("Segoe UI", 11, "bold"),
             text_color="#a1a1aa", fg_color="#18181b", corner_radius=7
@@ -1017,6 +1037,36 @@ class WhisperApp:
         self._set_status(f"Caricamento {engine_name} ({lang})...")
         
         def load_task():
+            download_started = [False]
+            def progress_callback(action, val, desc):
+                if action == "init":
+                    download_started[0] = True
+                    def on_init():
+                        self.status_label.configure(fg_color="transparent", text_color="#ffffff", text=f"Download del modello {engine_name} in corso... 0%")
+                        self.status_fill.place(relwidth=0.0)
+                        self.status_fill.lift()
+                        self.status_label.lift()
+                    self.root.after(0, on_init)
+                elif action == "update" and download_started[0]:
+                    total = getattr(val, "total", 0) or 0
+                    n = getattr(val, "n_custom", 0)
+                    if total > 0:
+                        pct = min(100, max(0, int((n / total) * 100)))
+                        size_mb = total / (1024 * 1024)
+                        curr_mb = n / (1024 * 1024)
+                        def on_update(p=pct, c=curr_mb, s=size_mb):
+                            self.status_fill.place(relwidth=p/100.0)
+                            self.status_label.configure(text=f"Download del modello {engine_name} ({c:.1f}/{s:.1f} MB)... {p}%")
+                            self.status_fill.lift()
+                            self.status_label.lift()
+                        self.root.after(0, on_update)
+                elif action == "close":
+                    def on_close():
+                        self.status_fill.place(relwidth=0.0)
+                        self.status_label.configure(fg_color="#18181b", text_color="#a1a1aa")
+                    self.root.after(0, on_close)
+
+            TkinterTqdm.callback = progress_callback
             try:
                 cache_key = f"{engine_name}_{lang}"
                 if cache_key not in self.models_cache:
@@ -1031,6 +1081,12 @@ class WhisperApp:
                 self.root.after(0, self._on_model_loaded)
             except Exception as e:
                 self.root.after(0, self._on_model_load_failed, e)
+            finally:
+                TkinterTqdm.callback = None
+                def cleanup():
+                    self.status_fill.place(relwidth=0.0)
+                    self.status_label.configure(fg_color="#18181b", text_color="#a1a1aa")
+                self.root.after(0, cleanup)
                 
         threading.Thread(target=load_task, daemon=True).start()
 
