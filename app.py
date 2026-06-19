@@ -572,6 +572,17 @@ class WhisperApp:
         self.img_it = self.get_flag_image("IT")
         self.img_en = self.get_flag_image("GB")
         
+        # Pre-load all flags in a background thread to prevent dropdown loading lag and rendering bugs
+        def pre_load_flags():
+            for lang in FlagDropdown.LANGUAGES:
+                if not getattr(self, "app_running", True):
+                    break
+                try:
+                    self.get_flag_image(lang["flag"])
+                except Exception:
+                    pass
+        threading.Thread(target=pre_load_flags, daemon=True).start()
+        
         self._setup_ui()
         self._load_model_async("Vosk Live", self.transcribe_lang)
             
