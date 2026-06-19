@@ -337,38 +337,52 @@ class FlagDropdown(ctk.CTkToplevel):
         self.bind("<Escape>", lambda e: self.close())
         
     def _populate_list(self):
+        self.populate_seq = getattr(self, "populate_seq", 0) + 1
+        current_seq = self.populate_seq
+        
         for w in self.scroll_frame.winfo_children():
             w.destroy()
             
         query = self.search_var.get().lower().strip()
-        
+        filtered = []
         for lang in self.LANGUAGES:
-            name = lang["name"]
-            code = lang["code"]
-            flag = lang["flag"]
-            wer = lang["wer"]
-            
-            if query and query not in name.lower() and query not in code.lower():
-                continue
+            if not query or query in lang["name"].lower() or query in lang["code"].lower():
+                filtered.append(lang)
                 
-            img = self._get_flag_image(flag)
-            
-            btn_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-            btn_frame.pack(fill=tk.X, pady=1)
-            
-            btn = ctk.CTkButton(
-                btn_frame, text=f" {name}", image=img, compound="left", anchor="w",
-                fg_color="transparent", text_color="#fafafa",
-                hover_color="#27272a", font=("Segoe UI", 11),
-                height=28, corner_radius=6,
-                command=lambda c=code: [self._on_select(c), self.close()]
-            )
-            btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-            
-            wer_lbl = ctk.CTkLabel(
-                btn_frame, text=wer, font=("Segoe UI", 10, "bold"), text_color="#a1a1aa", width=45, anchor="e"
-            )
-            wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
+        def load_batch(index):
+            if self.populate_seq != current_seq:
+                return
+            batch_size = 5
+            for i in range(index, min(index + batch_size, len(filtered))):
+                lang = filtered[i]
+                name = lang["name"]
+                code = lang["code"]
+                flag = lang["flag"]
+                wer = lang["wer"]
+                
+                img = self._get_flag_image(flag)
+                
+                btn_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+                btn_frame.pack(fill=tk.X, pady=1)
+                
+                btn = ctk.CTkButton(
+                    btn_frame, text=f" {name}", image=img, compound="left", anchor="w",
+                    fg_color="transparent", text_color="#fafafa",
+                    hover_color="#27272a", font=("Segoe UI", 11),
+                    height=28, corner_radius=6,
+                    command=lambda c=code: [self._on_select(c), self.close()]
+                )
+                btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                
+                wer_lbl = ctk.CTkLabel(
+                    btn_frame, text=wer, font=("Segoe UI", 10, "bold"), text_color="#a1a1aa", width=45, anchor="e"
+                )
+                wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
+                
+            if index + batch_size < len(filtered):
+                self.after(5, lambda: load_batch(index + batch_size))
+                
+        load_batch(0)
             
     def _on_click_outside(self, event):
         x, y = event.x_root, event.y_root
