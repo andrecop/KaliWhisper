@@ -136,7 +136,7 @@ import customtkinter.windows.widgets.ctk_optionmenu as optmenu
 optmenu.DropdownMenu = ShadcnDropdown
 
 class ConfirmDialog(ctk.CTkToplevel):
-    def __init__(self, master, title, message, on_confirm):
+    def __init__(self, master, title, message, on_confirm, on_cancel=None):
         super().__init__(master)
         self.title(title)
         self.geometry("320x160")
@@ -177,7 +177,7 @@ class ConfirmDialog(ctk.CTkToplevel):
             btn_frame, text="No", width=120, height=32,
             fg_color="#27272a", hover_color="#3f3f46", text_color="#fafafa",
             font=("Segoe UI", 11), corner_radius=6,
-            command=self.destroy
+            command=lambda: [on_cancel() if on_cancel else None, self.destroy()]
         )
         self.no_btn.pack(side=tk.RIGHT, expand=True, padx=5)
         
@@ -237,6 +237,8 @@ class WhisperApp:
         self.window_id = 0
         self.transcribe_seq = 0
         self.latest_seq_processed = 0
+        self.save_and_close_on_finish = False
+        self.close_on_complete = False
         self.pa = pyaudio.PyAudio()
         self.stream = None
         self.rec = None
@@ -454,9 +456,27 @@ class WhisperApp:
         self.reset_btn = ctk.CTkButton(button_frame, text="🗑", command=self._reset_transcription, font=("Segoe UI", 13), width=38, height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
         self.reset_btn.pack(side=tk.LEFT, padx=(5, 0))
         
+        self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        self.save_and_close_btn = ctk.CTkButton(
+            self.bottom_btn_frame, 
+            text="💾 Salva tutto e Chiudi al termine", 
+            command=self._save_all_and_close_on_finish, 
+            font=("Segoe UI", 11, "bold"), 
+            height=38, 
+            fg_color="#18181b", 
+            border_color="#27272a", 
+            border_width=1, 
+            text_color="#fafafa",
+            hover_color="#27272a"
+        )
+        self.save_and_close_btn.pack(fill=tk.X, expand=True)
+
         self._set_btn_state(self.start_btn, "disabled", "success")
         self._set_btn_state(self.save_btn, "disabled", "info")
         self._set_btn_state(self.save_audio_btn, "disabled", "info")
+        self._set_btn_state(self.save_and_close_btn, "disabled", "secondary")
 
     def _set_status(self, text):
         self.status_scroll_id = getattr(self, "status_scroll_id", 0) + 1
@@ -550,6 +570,10 @@ class WhisperApp:
             self._set_btn_state(self.save_audio_btn, "normal", "info")
         else:
             self._set_btn_state(self.save_audio_btn, "disabled", "info")
+        if not self.is_recording and (text_content or getattr(self, "all_recorded_audio", None)):
+            self._set_btn_state(self.save_and_close_btn, "normal", "secondary")
+        else:
+            self._set_btn_state(self.save_and_close_btn, "disabled", "secondary")
 
     def _toggle_recording(self):
         if not self.is_recording:
@@ -862,6 +886,8 @@ class WhisperApp:
                 print(f"TRACER: AcceptWaveform error: {e}", flush=True)
             finally:
                 self.audio_queue.task_done()
+                if not self.is_recording and self.audio_queue.empty():
+                    self.root.after(0, self._check_pending_actions)
 
     def _trigger_transcribe(self, is_final=False):
         if not self.active_audio_frames:
@@ -932,6 +958,8 @@ class WhisperApp:
                 except Exception as e:
                     print(f"TRACER: Temp file cleanup exception: {e}", flush=True)
                 self.transcription_queue.task_done()
+                if not self.is_recording and self.transcription_queue.empty():
+                    self.root.after(0, self._check_pending_actions)
 
     def _clean_hallucinations(self, text):
         text_lower = text.lower()
@@ -987,7 +1015,53 @@ class WhisperApp:
             self.text_area.configure(state="normal")
         self._update_save_button_state()
 
-    def _on_closing(self):
+    def _is_active_processing(self):
+        if self.is_recording:
+            return True
+        if not self.transcription_queue.empty() or not self.audio_queue.empty():
+            return True
+        return False
+
+    def _save_all_and_close_on_finish(self):
+        if self.is_recording:
+            self._toggle_recording()
+        self.save_and_close_on_finish = True
+        self._set_status("Salvataggio e chiusura al termine...")
+        if not self._is_active_processing():
+            self._execute_save_all_and_close()
+
+    def _execute_save_all_and_close(self):
+        text_content = self.text_area.get("1.0", "end").strip()
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        if text_content:
+            filepath = os.path.join(self.dest_dir, f"trascrizione_{timestamp}.txt")
+            try:
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(text_content)
+            except Exception:
+                pass
+        if self.all_recorded_audio:
+            filepath_audio = os.path.join(self.dest_dir, f"registrazione_{timestamp}.wav")
+            try:
+                raw_bytes = b"".join(self.all_recorded_audio)
+                with wave.open(filepath_audio, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
+                    wf.setframerate(16000)
+                    wf.writeframes(raw_bytes)
+            except Exception:
+                pass
+        self._on_closing_forced()
+
+    def _check_pending_actions(self):
+        if self._is_active_processing():
+            return
+        if getattr(self, "save_and_close_on_finish", False):
+            self._execute_save_all_and_close()
+        elif getattr(self, "close_on_complete", False):
+            self._on_closing_forced()
+
+    def _on_closing_forced(self):
         self.is_recording = False
         self.app_running = False
         self.audio_queue.put(None)
@@ -1012,6 +1086,25 @@ class WhisperApp:
             except Exception:
                 pass
         self.root.destroy()
+
+    def _on_closing(self):
+        if self._is_active_processing():
+            def do_force_close():
+                self._on_closing_forced()
+            def do_wait_close():
+                self.close_on_complete = True
+                if self.is_recording:
+                    self._toggle_recording()
+                self._set_status("Chiusura pianificata al termine...")
+            ConfirmDialog(
+                self.root, 
+                "Attività in corso", 
+                "La trascrizione è in corso. Chiudere subito?", 
+                do_force_close,
+                on_cancel=do_wait_close
+            )
+        else:
+            self._on_closing_forced()
 
 if __name__ == "__main__":
     root = ctk.CTk()
