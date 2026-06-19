@@ -397,6 +397,7 @@ class FlagDropdown(ctk.CTkToplevel):
         self.search_var.set("")
         self.geometry(f"250x300+{int(x)}+{int(y)}")
         self.deiconify()
+        self.update_idletasks()
         self.lift()
         self.focus_force()
         self.search_entry.focus()
