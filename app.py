@@ -697,6 +697,8 @@ class WhisperApp:
         self.pa = pyaudio.PyAudio()
         self.stream = None
         self.rec = None
+        self.visualizer_width = 100
+        self.visualizer_height = 36
         
         self.dest_root = os.path.join(os.path.dirname(__file__), "recorded")
         self.dest_dir = self.dest_root
@@ -1021,6 +1023,7 @@ class WhisperApp:
         
         self.visualizer = tk.Canvas(self.visualizer_container, height=36, bg="#18181b", highlightthickness=0)
         self.visualizer.pack(fill=tk.BOTH, expand=True, padx=2, pady=1)
+        self.visualizer.bind("<Configure>", self._on_visualizer_configure)
 
         self.save_and_close_btn = ctk.CTkButton(
             self.close_btn_frame, 
@@ -1474,18 +1477,19 @@ class WhisperApp:
             except Exception:
                 pass
 
+    def _on_visualizer_configure(self, event):
+        self.visualizer_width = event.width
+        self.visualizer_height = event.height
+
     def _update_visualizer(self, rms, threshold):
         self.visualizer.delete("all")
         import math
         normalized = min(1.0, rms / 3000.0)
         bar_width = 4
         gap = 3
-        try:
-            canvas_width = max(38, self.visualizer.winfo_width())
-            canvas_height = max(20, self.visualizer.winfo_height())
-        except Exception:
-            canvas_width = 140
-            canvas_height = 36
+        
+        canvas_width = max(38, getattr(self, "visualizer_width", 100))
+        canvas_height = max(20, getattr(self, "visualizer_height", 36))
             
         num_bars = max(1, (canvas_width - gap) // (bar_width + gap))
         start_x = (canvas_width - (num_bars * (bar_width + gap) - gap)) // 2
