@@ -447,6 +447,7 @@ class FlagDropdown(ctk.CTkToplevel):
             y = btn_y + btn_h + 2
             
         self.geometry(f"250x{dropdown_height}+{int(x)}+{int(y)}")
+        self.lift()
 
     def open(self, btn, on_select):
         self._on_select = on_select
@@ -455,6 +456,7 @@ class FlagDropdown(ctk.CTkToplevel):
         self._populate_list()
         
         self.reposition()
+        self.transient(self.master)
         self.deiconify()
         self.update()
         self.update_idletasks()
