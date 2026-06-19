@@ -334,10 +334,21 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=None, font=("Segoe UI", 10, "bold"), width=90)
+        lang_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=90)
+        lang_border.pack(side=tk.RIGHT, padx=2)
+        lang_border.pack_propagate(False)
         
-        self.lang_btn = ctk.CTkButton(self.model_frame, text="", image=self.img_it, command=self._toggle_language, width=46)
-        self.lang_btn.pack(side=tk.RIGHT, padx=2)
-        self._set_btn_state(self.lang_btn, "normal", "secondary")
+        self.lang_combo = ctk.CTkOptionMenu(
+            lang_border, values=["Italiano", "Inglese"],
+            command=self._on_language_selected,
+            fg_color="#18181b", button_color="#18181b", button_hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11),
+            dropdown_fg_color="#18181b", dropdown_text_color="#fafafa",
+            dropdown_hover_color="#27272a", dropdown_font=("Segoe UI", 11),
+            corner_radius=7
+        )
+        self.lang_combo.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        self.lang_combo.set("Italiano")
 
         self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
         self.dest_btn.pack(side=tk.RIGHT, padx=2)
@@ -885,14 +896,12 @@ class WhisperApp:
             
         ConfirmDialog(self.root, "Conferma Reset", "Sei sicuro di voler cancellare tutta la trascrizione e registrazione correnti?", do_reset)
 
-    def _toggle_language(self):
-        if self.transcribe_lang == "it":
+    def _on_language_selected(self, selected_lang):
+        if selected_lang == "Inglese":
             self.transcribe_lang = "en"
-            self.lang_btn.configure(text="", image=self.img_en)
             self._set_status("Lingua: Inglese")
         else:
             self.transcribe_lang = "it"
-            self.lang_btn.configure(text="", image=self.img_it)
             self._set_status("Lingua: Italiano")
         
         self._load_model_async(self.model_combo.get(), self.transcribe_lang)
