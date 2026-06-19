@@ -1092,15 +1092,19 @@ class WhisperApp:
         gap = 3
         try:
             canvas_width = max(38, self.visualizer.winfo_width())
+            canvas_height = max(20, self.visualizer.winfo_height())
         except Exception:
-            canvas_width = 38
-        start_x = (canvas_width - 25) // 2
-        for i in range(4):
-            factor = (0.5 + 0.5 * math.sin(i * 1.5)) if rms > 10 else 0.05
-            h = int(3 + 24 * normalized * factor)
-            h = max(3, min(24, h))
-            y0 = 27 - h
-            y1 = 27
+            canvas_width = 140
+            canvas_height = 36
+            
+        num_bars = max(1, (canvas_width - gap) // (bar_width + gap))
+        start_x = (canvas_width - (num_bars * (bar_width + gap) - gap)) // 2
+        for i in range(num_bars):
+            factor = (0.5 + 0.5 * math.sin(i * 0.8)) if rms > 10 else 0.05
+            h = int(3 + (canvas_height - 6) * normalized * factor)
+            h = max(3, min(canvas_height - 6, h))
+            y0 = (canvas_height - h) // 2
+            y1 = y0 + h
             x0 = start_x + i * (bar_width + gap)
             x1 = x0 + bar_width
             color = "#ef4444" if rms < threshold else "#22c55e"
