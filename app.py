@@ -251,7 +251,7 @@ class WhisperApp:
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
-        self.dest_btn.pack(side=tk.LEFT, padx=2)
+        self.dest_btn.pack(side=tk.RIGHT, padx=2)
         self._set_btn_state(self.dest_btn, "normal", "secondary")
         
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
