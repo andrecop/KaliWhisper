@@ -331,60 +331,48 @@ class FlagDropdown(ctk.CTkToplevel):
         )
         self.scroll_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 6))
         
+        self.rows = []
+        for lang in self.LANGUAGES:
+            name = lang["name"]
+            code = lang["code"]
+            flag = lang["flag"]
+            wer = lang["wer"]
+            
+            img = self._get_flag_image(flag)
+            
+            btn_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+            btn_frame.pack(fill=tk.X, pady=1)
+            
+            btn = ctk.CTkButton(
+                btn_frame, text=f" {name}", image=img, compound="left", anchor="w",
+                fg_color="transparent", text_color="#fafafa",
+                hover_color="#27272a", font=("Segoe UI", 11),
+                height=28, corner_radius=6,
+                command=lambda c=code: [self._on_select(c), self.close()]
+            )
+            btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            
+            wer_lbl = ctk.CTkLabel(
+                btn_frame, text=wer, font=("Segoe UI", 10, "bold"), text_color="#a1a1aa", width=45, anchor="e"
+            )
+            wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
+            
+            self.rows.append({
+                "frame": btn_frame,
+                "name_lower": name.lower(),
+                "code_lower": code.lower()
+            })
+            
         self.bind("<Button-1>", self._on_click_outside)
         self.bind("<Escape>", lambda e: self.close())
         
     def _populate_list(self):
         query = self.search_var.get().lower().strip()
-        if hasattr(self, "_last_query") and self._last_query == query and self.scroll_frame.winfo_children():
-            return
-        self._last_query = query
-        
-        self.populate_seq = getattr(self, "populate_seq", 0) + 1
-        current_seq = self.populate_seq
-        
-        for w in self.scroll_frame.winfo_children():
-            w.destroy()
-        filtered = []
-        for lang in self.LANGUAGES:
-            if not query or query in lang["name"].lower() or query in lang["code"].lower():
-                filtered.append(lang)
-                
-        def load_batch(index, first_sync=False):
-            if self.populate_seq != current_seq:
-                return
-            batch_size = 15 if first_sync else 6
-            for i in range(index, min(index + batch_size, len(filtered))):
-                lang = filtered[i]
-                name = lang["name"]
-                code = lang["code"]
-                flag = lang["flag"]
-                wer = lang["wer"]
-                
-                img = self._get_flag_image(flag)
-                
-                btn_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-                btn_frame.pack(fill=tk.X, pady=1)
-                
-                btn = ctk.CTkButton(
-                    btn_frame, text=f" {name}", image=img, compound="left", anchor="w",
-                    fg_color="transparent", text_color="#fafafa",
-                    hover_color="#27272a", font=("Segoe UI", 11),
-                    height=28, corner_radius=6,
-                    command=lambda c=code: [self._on_select(c), self.close()]
-                )
-                btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
-                
-                wer_lbl = ctk.CTkLabel(
-                    btn_frame, text=wer, font=("Segoe UI", 10, "bold"), text_color="#a1a1aa", width=45, anchor="e"
-                )
-                wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
-                
-            self.update_idletasks()
-            if index + batch_size < len(filtered):
-                self.after(5, lambda: load_batch(index + batch_size, False))
-                
-        load_batch(0, first_sync=True)
+        for row in self.rows:
+            if not query or query in row["name_lower"] or query in row["code_lower"]:
+                row["frame"].pack(fill=tk.X, pady=1)
+            else:
+                row["frame"].pack_forget()
             
     def _on_click_outside(self, event):
         x, y = event.x_root, event.y_root
@@ -400,7 +388,6 @@ class FlagDropdown(ctk.CTkToplevel):
         self.geometry(f"250x300+{int(x)}+{int(y)}")
         self.deiconify()
         self.update_idletasks()
-        self._populate_list()
         self.lift()
         self.focus_force()
         self.search_entry.focus()
@@ -584,6 +571,8 @@ class WhisperApp:
                     self.get_flag_image(lang["flag"])
                 except Exception:
                     pass
+            # Initialize dropdowns synchronously on the main thread once flags are cached
+            self.root.after(0, self._init_dropdowns)
         threading.Thread(target=pre_load_flags, daemon=True).start()
         
         self._setup_ui()
@@ -1268,11 +1257,18 @@ class WhisperApp:
             
         ConfirmDialog(self.root, "Conferma Reset", "Sei sicuro di voler cancellare tutta la trascrizione e registrazione correnti?", do_reset)
 
+    def _init_dropdowns(self):
+        if hasattr(self, "lang_dropdown"):
+            return
+        self.lang_dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_language_selected)
+        self.target_lang_dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_target_language_selected)
+        self.ui_lang_dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_ui_language_selected)
+
     def _show_flag_dropdown(self):
+        self._init_dropdowns()
         x = self.lang_btn.winfo_rootx()
         y = self.lang_btn.winfo_rooty() + self.lang_btn.winfo_height() + 2
-        dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_language_selected)
-        dropdown.open(x, y)
+        self.lang_dropdown.open(x, y)
 
     def _on_language_selected(self, selected_lang):
         self.transcribe_lang = selected_lang
@@ -1335,10 +1331,10 @@ class WhisperApp:
         self._load_model_async(self.model_combo.get(), self.transcribe_lang)
 
     def _show_target_flag_dropdown(self):
+        self._init_dropdowns()
         x = self.target_lang_btn.winfo_rootx()
         y = self.target_lang_btn.winfo_rooty() + self.target_lang_btn.winfo_height() + 2
-        dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_target_language_selected)
-        dropdown.open(x, y)
+        self.target_lang_dropdown.open(x, y)
 
     def _on_target_language_selected(self, selected_lang):
         old_lang = self.target_lang
@@ -1387,10 +1383,10 @@ class WhisperApp:
         threading.Thread(target=translate_task, daemon=True).start()
 
     def _show_ui_flag_dropdown(self):
+        self._init_dropdowns()
         x = self.ui_lang_btn.winfo_rootx()
         y = self.ui_lang_btn.winfo_rooty() + self.ui_lang_btn.winfo_height() + 2
-        dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_ui_language_selected)
-        dropdown.open(x, y)
+        self.ui_lang_dropdown.open(x, y)
 
     def _on_ui_language_selected(self, selected_lang):
         self._update_ui_language(selected_lang)
