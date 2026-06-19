@@ -335,13 +335,16 @@ class FlagDropdown(ctk.CTkToplevel):
         self.bind("<Escape>", lambda e: self.close())
         
     def _populate_list(self):
+        query = self.search_var.get().lower().strip()
+        if hasattr(self, "_last_query") and self._last_query == query and self.scroll_frame.winfo_children():
+            return
+        self._last_query = query
+        
         self.populate_seq = getattr(self, "populate_seq", 0) + 1
         current_seq = self.populate_seq
         
         for w in self.scroll_frame.winfo_children():
             w.destroy()
-            
-        query = self.search_var.get().lower().strip()
         filtered = []
         for lang in self.LANGUAGES:
             if not query or query in lang["name"].lower() or query in lang["code"].lower():
