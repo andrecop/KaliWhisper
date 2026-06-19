@@ -465,6 +465,7 @@ class FlagDropdown(ctk.CTkToplevel):
                 row["frame"].pack(fill=tk.X, pady=1)
             else:
                 row["frame"].pack_forget()
+        self.reposition()
             
     def _on_click_outside(self, event):
         x, y = event.x_root, event.y_root
@@ -483,9 +484,18 @@ class FlagDropdown(ctk.CTkToplevel):
         btn_y = btn.winfo_rooty()
         btn_h = btn.winfo_height()
         
-        screen_height = self.winfo_screenheight()
-        dropdown_height = 300
+        visible_count = 0
+        query = self.search_var.get().lower().strip()
+        for row in self.rows:
+            if not query or query in row["name_lower"] or query in row["code_lower"]:
+                visible_count += 1
+                
+        row_height = 30
+        non_row_height = 48
+        calculated_height = non_row_height + visible_count * row_height
+        dropdown_height = min(300, calculated_height)
         
+        screen_height = self.winfo_screenheight()
         window_width = 254
         window_height = dropdown_height + 4
         
