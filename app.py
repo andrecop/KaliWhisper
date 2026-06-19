@@ -183,6 +183,7 @@ class WhisperApp:
         
         self.current_file_total = 0
         self.current_file_progress = 0
+        self.dest_dir = os.path.expanduser("~")
         
         self._setup_ui()
         self._update_action_buttons()
@@ -249,6 +250,9 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=self._download_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
+        self.dest_btn.pack(side=tk.LEFT, padx=2)
+        self._set_btn_state(self.dest_btn, "normal", "secondary")
         
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
@@ -668,14 +672,20 @@ class WhisperApp:
         self._update_save_button_state()
         self._set_status("In attesa...")
 
+    def _choose_destination(self):
+        from tkinter import filedialog
+        selected_dir = filedialog.askdirectory(initialdir=self.dest_dir, title="Seleziona cartella di destinazione")
+        if selected_dir:
+            self.dest_dir = selected_dir
+            self._set_status(f"Destinazione salvataggio impostata su: {self.dest_dir}")
+
     def _save_transcription(self):
         text_content = self.text_area.get("1.0", "end").strip()
         if not text_content:
             return
             
         filename = f"trascrizione_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        home_dir = os.path.expanduser("~")
-        filepath = os.path.join(home_dir, filename)
+        filepath = os.path.join(self.dest_dir, filename)
         
         try:
             with open(filepath, "w", encoding="utf-8") as f:
