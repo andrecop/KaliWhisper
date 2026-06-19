@@ -244,7 +244,6 @@ class WhisperApp:
         device_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30)
         device_border.pack(side=tk.LEFT, fill=tk.X, expand=True)
         device_border.pack_propagate(False)
-        
         self.devices = []
         device_names = []
         default_device_name = None
@@ -255,7 +254,7 @@ class WhisperApp:
             pass
 
         try:
-            seen_names = set()
+            all_devices_info = []
             for h in range(self.pa.get_host_api_count()):
                 try:
                     info = self.pa.get_host_api_info_by_index(h)
@@ -263,33 +262,33 @@ class WhisperApp:
                     for i in range(0, numdevices):
                         device_info = self.pa.get_device_info_by_host_api_device_index(h, i)
                         if device_info.get('maxInputChannels', 0) > 0:
-                            name = device_info.get('name')
-                            is_duplicate = False
-                            for existing_name in list(seen_names):
-                                if name == existing_name:
-                                    is_duplicate = True
-                                    break
-                                if name.startswith(existing_name) and len(name) > len(existing_name):
-                                    seen_names.remove(existing_name)
-                                    if existing_name in device_names:
-                                        idx_to_remove = device_names.index(existing_name)
-                                        device_names.pop(idx_to_remove)
-                                        self.devices.pop(idx_to_remove)
-                                    break
-                                if existing_name.startswith(name) and len(existing_name) > len(name):
-                                    is_duplicate = True
-                                    break
-                                    
-                            if not is_duplicate:
-                                global_idx = device_info.get('index')
-                                self.devices.append((global_idx, name))
-                                device_names.append(name)
-                                seen_names.add(name)
+                            all_devices_info.append(device_info)
                 except Exception:
                     pass
+
+            mme_info = self.pa.get_host_api_info_by_index(0)
+            mme_devices_count = mme_info.get('deviceCount', 0)
+            for i in range(0, mme_devices_count):
+                device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
+                if device_info.get('maxInputChannels', 0) > 0:
+                    name = device_info.get('name')
+                    if name in ["Microsoft Sound Mapper - Input", "Driver primario di acquisizione suoni"]:
+                        continue
+                    
+                    full_name = name
+                    best_global_idx = device_info.get('index')
+                    
+                    for other_info in all_devices_info:
+                        other_name = other_info.get('name')
+                        if other_name.startswith(name) and len(other_name) > len(full_name):
+                            full_name = other_name
+                            best_global_idx = other_info.get('index')
+                            
+                    if full_name not in device_names:
+                        self.devices.append((best_global_idx, full_name))
+                        device_names.append(full_name)
         except Exception:
             pass
-            
         if not device_names:
             device_names = ["Predefinito"]
             self.devices = [(-1, "Predefinito")]
