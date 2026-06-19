@@ -40,9 +40,9 @@ class TkinterTqdm(tqdm.tqdm):
 class WhisperApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("KaliWhisper - Live Transcription")
+        self.root.title("KaliWhisper")
         self.root.geometry("650x550")
-        self.root.minsize(500, 450)
+        self.root.minsize(550, 480)
         self.root.configure(bg="#09090b")
         
         self._init_styles()
@@ -75,27 +75,6 @@ class WhisperApp:
         style.theme_use("clam")
         
         style.configure("TFrame", background="#09090b")
-        style.configure("Labelframe", background="#18181b", foreground="#fafafa", bordercolor="#27272a", borderwidth=1)
-        style.configure("Labelframe.Label", background="#18181b", foreground="#fafafa", font=("Segoe UI", 10, "bold"))
-        
-        style.configure("TLabel", background="#09090b", foreground="#fafafa", font=("Segoe UI", 10))
-        style.configure("Card.TLabel", background="#18181b", foreground="#fafafa", font=("Segoe UI", 10))
-        
-        style.configure("Primary.TButton", background="#ffffff", foreground="#09090b", font=("Segoe UI", 10, "bold"), borderwidth=0, padding=8)
-        style.map("Primary.TButton",
-                  background=[("active", "#e4e4e7"), ("disabled", "#27272a")],
-                  foreground=[("disabled", "#a1a1aa")])
-                  
-        style.configure("Secondary.TButton", background="#27272a", foreground="#fafafa", font=("Segoe UI", 10), borderwidth=0, padding=8)
-        style.map("Secondary.TButton",
-                  background=[("active", "#3f3f46"), ("disabled", "#18181b")],
-                  foreground=[("disabled", "#52525b")])
-                  
-        style.configure("Danger.TButton", background="#7f1d1d", foreground="#fca5a5", font=("Segoe UI", 10), borderwidth=0, padding=8)
-        style.map("Danger.TButton",
-                  background=[("active", "#991b1b"), ("disabled", "#18181b")],
-                  foreground=[("disabled", "#52525b")])
-                  
         style.configure("TCombobox", fieldbackground="#18181b", background="#27272a", foreground="#fafafa", bordercolor="#27272a", lightcolor="#27272a", darkcolor="#27272a")
         style.map("TCombobox",
                   fieldbackground=[("readonly", "#18181b")],
@@ -108,56 +87,80 @@ class WhisperApp:
         self.root.option_add("*TCombobox*Listbox.foreground", "#fafafa")
         self.root.option_add("*TCombobox*Listbox.selectBackground", "#27272a")
         self.root.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
+        self.root.option_add("*TCombobox*Listbox.borderWidth", "0")
+        self.root.option_add("*TCombobox*Listbox.relief", "flat")
+
+    def _set_btn_state(self, btn, state, btn_type="secondary"):
+        if state == "normal":
+            btn.config(state="normal", cursor="hand2")
+            if btn_type == "primary":
+                btn.config(bg="#ffffff", fg="#09090b", activebackground="#e4e4e7", activeforeground="#09090b")
+            elif btn_type == "danger":
+                btn.config(bg="#ef4444", fg="#ffffff", activebackground="#f87171", activeforeground="#ffffff")
+            else:
+                btn.config(bg="#27272a", fg="#fafafa", activebackground="#3f3f46", activeforeground="#fafafa")
+        else:
+            btn.config(state="disabled", cursor="arrow")
+            if btn_type == "primary":
+                btn.config(bg="#27272a", fg="#71717a")
+            elif btn_type == "danger":
+                btn.config(bg="#18181b", fg="#7f1d1d")
+            else:
+                btn.config(bg="#18181b", fg="#52525b")
 
     def _setup_ui(self):
-        main_frame = ttk.Frame(self.root, padding="15")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = tk.Frame(self.root, bg="#09090b")
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        model_frame = ttk.Frame(main_frame)
-        model_frame.pack(fill=tk.X, pady=(0, 10))
+        model_frame = tk.Frame(main_frame, bg="#09090b")
+        model_frame.pack(fill=tk.X, pady=(0, 15))
         
-        ttk.Label(model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 10, "bold"), foreground="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
-        self.model_combo = ttk.Combobox(model_frame, values=["tiny", "base", "small", "medium"], state="readonly", width=15)
+        tk.Label(model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 10, "bold"), bg="#09090b", fg="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
+        self.model_combo = ttk.Combobox(model_frame, values=["tiny", "base", "small", "medium"], state="readonly", width=12)
         self.model_combo.set(self.model_name)
-        self.model_combo.pack(side=tk.LEFT, padx=(0, 5))
+        self.model_combo.pack(side=tk.LEFT, padx=(0, 8))
         self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
         
-        self.download_btn = ttk.Button(model_frame, text="⬇ Scarica", command=self._download_selected_model, style="Secondary.TButton")
-        self.delete_btn = ttk.Button(model_frame, text="🗑 Elimina", command=self._delete_selected_model, style="Danger.TButton")
-        self.update_btn = ttk.Button(model_frame, text="🔄 Aggiorna", command=self._update_selected_model, style="Secondary.TButton")
+        self.download_btn = tk.Button(model_frame, text="⬇ Scarica", command=self._download_selected_model, bd=0, relief=tk.FLAT, font=("Segoe UI", 9, "bold"), padx=12, pady=5)
+        self.delete_btn = tk.Button(model_frame, text="🗑 Elimina", command=self._delete_selected_model, bd=0, relief=tk.FLAT, font=("Segoe UI", 9, "bold"), padx=12, pady=5)
+        self.update_btn = tk.Button(model_frame, text="🔄 Aggiorna", command=self._update_selected_model, bd=0, relief=tk.FLAT, font=("Segoe UI", 9, "bold"), padx=12, pady=5)
         
         self.progress_frame = ttk.Frame(main_frame)
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(self.progress_frame, variable=self.progress_var, maximum=100, style="Horizontal.TProgressbar")
         self.progress_bar.pack(fill=tk.X, expand=True)
         
-        self.status_frame = ttk.LabelFrame(main_frame, text="Stato", padding="10")
-        self.status_frame.pack(fill=tk.X, pady=(0, 10))
+        self.status_frame = tk.Frame(main_frame, bg="#18181b", bd=0, highlightbackground="#27272a", highlightcolor="#27272a", highlightthickness=1)
+        self.status_frame.pack(fill=tk.X, pady=(0, 15), ipady=12, ipadx=12)
         
-        self.status_label = ttk.Label(self.status_frame, text="Inizializzazione...", style="Card.TLabel")
-        self.status_label.pack(anchor=tk.W)
+        tk.Label(self.status_frame, text="Stato", font=("Segoe UI", 9, "bold"), bg="#18181b", fg="#fafafa").pack(anchor=tk.W, padx=12, pady=(8, 2))
+        self.status_label = tk.Label(self.status_frame, text="Inizializzazione...", font=("Segoe UI", 10), bg="#18181b", fg="#a1a1aa")
+        self.status_label.pack(anchor=tk.W, padx=12)
         
-        text_frame = ttk.LabelFrame(main_frame, text="Trascrizione", padding="10")
-        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        text_frame = tk.Frame(main_frame, bg="#18181b", bd=0, highlightbackground="#27272a", highlightcolor="#27272a", highlightthickness=1)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        tk.Label(text_frame, text="Trascrizione", font=("Segoe UI", 9, "bold"), bg="#18181b", fg="#fafafa").pack(anchor=tk.W, padx=12, pady=(8, 4))
         
         self.text_area = scrolledtext.ScrolledText(
             text_frame, wrap=tk.WORD, font=("Segoe UI", 11),
             bg="#18181b", fg="#fafafa", insertbackground="#fafafa",
             selectbackground="#27272a", selectforeground="#ffffff",
-            borderwidth=0, highlightthickness=1, highlightbackground="#27272a",
-            highlightcolor="#ffffff", padx=10, pady=10
+            borderwidth=0, highlightthickness=0, padx=12, pady=5
         )
-        self.text_area.pack(fill=tk.BOTH, expand=True)
+        self.text_area.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 8))
         
-        button_frame = ttk.Frame(main_frame)
+        button_frame = tk.Frame(main_frame, bg="#09090b")
         button_frame.pack(fill=tk.X)
         
-        self.start_btn = ttk.Button(button_frame, text="▶ Avvia Trascrizione", command=self._start_recording, style="Primary.TButton")
+        self.start_btn = tk.Button(button_frame, text="▶ Avvia Trascrizione", command=self._start_recording, bd=0, relief=tk.FLAT, font=("Segoe UI", 10, "bold"), pady=8)
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        self.stop_btn = ttk.Button(button_frame, text="■ Ferma e Salva", command=self._stop_recording, state="disabled", style="Secondary.TButton")
+        self.stop_btn = tk.Button(button_frame, text="■ Ferma e Salva", command=self._stop_recording, bd=0, relief=tk.FLAT, font=("Segoe UI", 10, "bold"), pady=8)
         self.stop_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
-
+        
+        self._set_btn_state(self.start_btn, "disabled", "primary")
+        self._set_btn_state(self.stop_btn, "disabled", "secondary")
 
     def _set_status(self, text):
         self.status_label.config(text=text)
@@ -187,17 +190,17 @@ class WhisperApp:
         if downloaded:
             self.download_btn.pack_forget()
             self.delete_btn.pack(side=tk.LEFT, padx=2)
-            self.delete_btn.config(state="normal")
+            self._set_btn_state(self.delete_btn, "normal", "danger")
             if self.model is not None and self.model_name == model_name:
-                self.start_btn.config(state="normal")
+                self._set_btn_state(self.start_btn, "normal", "primary")
             else:
-                self.start_btn.config(state="disabled")
+                self._set_btn_state(self.start_btn, "disabled", "primary")
             self._check_for_updates_async(model_name)
         else:
             self.delete_btn.pack_forget()
             self.download_btn.pack(side=tk.LEFT, padx=2)
-            self.download_btn.config(state="normal")
-            self.start_btn.config(state="disabled")
+            self._set_btn_state(self.download_btn, "normal", "secondary")
+            self._set_btn_state(self.start_btn, "disabled", "primary")
 
     def _check_for_updates_async(self, model_name):
         def check_task():
@@ -222,8 +225,7 @@ class WhisperApp:
     def _show_update_button_if_selected(self, checked_model):
         if self.model_combo.get() == checked_model:
             self.update_btn.pack(side=tk.LEFT, padx=2)
-            self.update_btn.config(state="normal")
-
+            self._set_btn_state(self.update_btn, "normal", "secondary")
 
     def _on_model_selected(self, event):
         new_model = self.model_combo.get()
@@ -247,9 +249,9 @@ class WhisperApp:
 
     def _load_model_async(self, model_name):
         self.model_combo.config(state="disabled")
-        self.start_btn.config(state="disabled")
-        self.delete_btn.config(state="disabled")
-        self.update_btn.config(state="disabled")
+        self._set_btn_state(self.start_btn, "disabled", "primary")
+        self._set_btn_state(self.delete_btn, "disabled", "danger")
+        self._set_btn_state(self.update_btn, "disabled", "secondary")
         self._set_status(f"Caricamento modello {model_name}...")
         
         def load_task():
@@ -283,12 +285,12 @@ class WhisperApp:
     def _download_selected_model(self):
         model_name = self.model_combo.get()
         self.model_combo.config(state="disabled")
-        self.download_btn.config(state="disabled")
+        self._set_btn_state(self.download_btn, "disabled", "secondary")
         self._set_status(f"Avvio download modello {model_name}...")
         self._download_model_thread(model_name)
 
     def _download_model_thread(self, model_name):
-        self.progress_frame.pack(fill=tk.X, pady=(0, 10), after=self.model_combo.master)
+        self.progress_frame.pack(fill=tk.X, pady=(0, 15), after=self.model_combo.master)
         
         def download_task():
             model_dir = os.path.join(os.path.dirname(__file__), "models")
@@ -354,7 +356,7 @@ class WhisperApp:
             import gc
             gc.collect()
             self.model = None
-            self.start_btn.config(state="disabled")
+            self._set_btn_state(self.start_btn, "disabled", "primary")
             
         model_dir = os.path.join(os.path.dirname(__file__), "models")
         repo_id = f"Systran/faster-whisper-{model_name}"
@@ -384,8 +386,8 @@ class WhisperApp:
             self._stop_recording_action()
             
         self.model_combo.config(state="disabled")
-        self.delete_btn.config(state="disabled")
-        self.update_btn.config(state="disabled")
+        self._set_btn_state(self.delete_btn, "disabled", "danger")
+        self._set_btn_state(self.update_btn, "disabled", "secondary")
         self._set_status(f"Verifica aggiornamenti modello {model_name}...")
         self._download_model_thread(model_name)
 
@@ -395,11 +397,11 @@ class WhisperApp:
             return
             
         self.is_recording = True
-        self.start_btn.config(state="disabled")
-        self.stop_btn.config(state="normal")
+        self._set_btn_state(self.start_btn, "disabled", "primary")
+        self._set_btn_state(self.stop_btn, "normal", "secondary")
         self.model_combo.config(state="disabled")
-        self.delete_btn.config(state="disabled")
-        self.update_btn.config(state="disabled")
+        self._set_btn_state(self.delete_btn, "disabled", "danger")
+        self._set_btn_state(self.update_btn, "disabled", "secondary")
         self._set_status("Registrazione in corso...")
         
         threading.Thread(target=self._recording_worker, daemon=True).start()
@@ -468,8 +470,8 @@ class WhisperApp:
 
     def _on_recording_failed(self):
         self.is_recording = False
-        self.start_btn.config(state="normal")
-        self.stop_btn.config(state="disabled")
+        self._set_btn_state(self.start_btn, "normal", "primary")
+        self._set_btn_state(self.stop_btn, "disabled", "secondary")
         self.model_combo.config(state="readonly")
         self._update_action_buttons()
         messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
@@ -493,8 +495,8 @@ class WhisperApp:
         text_content = self.text_area.get("1.0", tk.END).strip()
         if not text_content:
             self._set_status("Salvataggio annullato (testo vuoto)")
-            self.start_btn.config(state="normal")
-            self.stop_btn.config(state="disabled")
+            self._set_btn_state(self.start_btn, "normal", "primary")
+            self._set_btn_state(self.stop_btn, "disabled", "secondary")
             self.model_combo.config(state="readonly")
             self._update_action_buttons()
             return
@@ -512,8 +514,8 @@ class WhisperApp:
             self._set_status(f"Errore di salvataggio: {e}")
             messagebox.showerror("Errore", f"Impossibile salvare il file: {e}")
             
-        self.start_btn.config(state="normal")
-        self.stop_btn.config(state="disabled")
+        self._set_btn_state(self.start_btn, "normal", "primary")
+        self._set_btn_state(self.stop_btn, "disabled", "secondary")
         self.model_combo.config(state="readonly")
         self._update_action_buttons()
 
