@@ -905,12 +905,13 @@ class WhisperApp:
     def _format_text(self, text, is_final):
         if not text:
             return ""
+        if self.model_combo.get().startswith("Whisper "):
+            return text
         text = " ".join(text.split())
-        if not self.model_combo.get().startswith("Whisper "):
-            words = text.split()
-            if words:
-                words[0] = words[0].capitalize()
-                text = " ".join(words)
+        words = text.split()
+        if words:
+            words[0] = words[0].capitalize()
+            text = " ".join(words)
         if is_final:
             if text[-1] in {".", "?", "!"}:
                 return text
