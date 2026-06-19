@@ -172,7 +172,7 @@ class WhisperApp:
             content_frame, wrap=tk.WORD, font=("Segoe UI", 11),
             bg="#18181b", fg="#fafafa", insertbackground="#fafafa",
             selectbackground="#27272a", selectforeground="#ffffff",
-            borderwidth=0, highlightthickness=0
+            borderwidth=0, highlightthickness=0, yscrollcommand=self.text_scroll.set
         )
         self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 4))
         self.text_scroll.config(command=self.text_area.yview)
