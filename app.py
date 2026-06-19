@@ -69,8 +69,10 @@ class ShadcnDropdown(ctk.CTkToplevel):
             
     def open(self, x, y):
         parent_width = self.master.winfo_width()
+        max_len = max(len(str(val)) for val in self._values) if self._values else 0
+        width = min(500, max(parent_width, int(max_len * 8.5 + 40)))
         height = len(self._values) * 32 + 8
-        self.geometry(f"{parent_width}x{height}+{int(x)}+{int(y)}")
+        self.geometry(f"{width}x{height}+{int(x)}+{int(y)}")
         self.deiconify()
         self.lift()
         self.focus_force()
