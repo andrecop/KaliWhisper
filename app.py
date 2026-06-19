@@ -1066,9 +1066,11 @@ class WhisperApp:
                             
                         self.status_canvas.bind("<Configure>", draw_canvas)
                         self.status_canvas.create_rectangle(0, 0, 0, 28, fill="#1e3a8a", outline="", tags="progress")
-                        self.status_canvas.create_text(0, 0, text=self.status_text_str, fill="#ffffff", font=("Segoe UI", 11, "bold"), tags="text")
+                        self.status_canvas.create_text(0, 0, text=self.status_text_str, fill="#ffffff", font=("Segoe UI", 9, "bold"), tags="text")
                         self.draw_canvas_fn = draw_canvas
                         draw_canvas()
+                        if self.status_canvas:
+                            self.status_canvas.update()
                     self.root.after(0, on_init)
                 elif action == "update" and download_started[0]:
                     total = getattr(val, "total", 0) or 0
@@ -1085,6 +1087,8 @@ class WhisperApp:
                             self.status_text_str = f"Download del modello {engine_name} ({c:.1f}/{s:.1f} MB)... {p}%"
                             if hasattr(self, "draw_canvas_fn"):
                                 self.draw_canvas_fn()
+                            if self.status_canvas:
+                                self.status_canvas.update()
                         self.root.after(0, on_update)
                 elif action == "close":
                     active_downloads[0] -= 1
