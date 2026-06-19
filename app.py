@@ -133,38 +133,174 @@ class ShadcnDropdown(ctk.CTkToplevel):
         return None
 
 class FlagDropdown(ctk.CTkToplevel):
-    def __init__(self, master, img_it, img_en, on_select):
+    LANGUAGES = [
+        {"name": "Spagnolo (Spanish)", "code": "es", "flag": "ES", "wer": "3.4%"},
+        {"name": "Inglese (English)", "code": "en", "flag": "GB", "wer": "4.2%"},
+        {"name": "Portoghese (Portuguese)", "code": "pt", "flag": "PT", "wer": "4.3%"},
+        {"name": "Tedesco (German)", "code": "de", "flag": "DE", "wer": "4.4%"},
+        {"name": "Italiano (Italian)", "code": "it", "flag": "IT", "wer": "4.7%"},
+        {"name": "Francese (French)", "code": "fr", "flag": "FR", "wer": "4.8%"},
+        {"name": "Russo (Russian)", "code": "ru", "flag": "RU", "wer": "5.0%"},
+        {"name": "Giapponese (Japanese)", "code": "ja", "flag": "JP", "wer": "5.3%"},
+        {"name": "Polacco (Polish)", "code": "pl", "flag": "PL", "wer": "5.4%"},
+        {"name": "Catalano (Catalan)", "code": "ca", "flag": "CA", "wer": "5.4%"},
+        {"name": "Cinese (Chinese)", "code": "zh", "flag": "CN", "wer": "5.5%"},
+        {"name": "Olandese (Dutch)", "code": "nl", "flag": "NL", "wer": "5.9%"},
+        {"name": "Svedese (Swedish)", "code": "sv", "flag": "SE", "wer": "6.1%"},
+        {"name": "Turco (Turkish)", "code": "tr", "flag": "TR", "wer": "6.4%"},
+        {"name": "Vietnamita (Vietnamese)", "code": "vi", "flag": "VN", "wer": "6.5%"},
+        {"name": "Indonesiano (Indonesian)", "code": "id", "flag": "ID", "wer": "6.5%"},
+        {"name": "Coreano (Korean)", "code": "ko", "flag": "KR", "wer": "7.2%"},
+        {"name": "Ceco (Czech)", "code": "cs", "flag": "CZ", "wer": "7.2%"},
+        {"name": "Malese (Malay)", "code": "ms", "flag": "MY", "wer": "7.5%"},
+        {"name": "Finlandese (Finnish)", "code": "fi", "flag": "FI", "wer": "8.0%"},
+        {"name": "Ucraino (Ukrainian)", "code": "uk", "flag": "UA", "wer": "8.5%"},
+        {"name": "Greco (Greek)", "code": "el", "flag": "GR", "wer": "8.8%"},
+        {"name": "Norvegese (Norwegian)", "code": "no", "flag": "NO", "wer": "~ 9%"},
+        {"name": "Danese (Danish)", "code": "da", "flag": "DK", "wer": "~ 9%"},
+        {"name": "Ungherese (Hungarian)", "code": "hu", "flag": "HU", "wer": "~ 9%"},
+        {"name": "Rumeno (Romanian)", "code": "ro", "flag": "RO", "wer": "~ 10%"},
+        {"name": "Arabo (Arabic)", "code": "ar", "flag": "SA", "wer": "~ 11%"},
+        {"name": "Slovacco (Slovak)", "code": "sk", "flag": "SK", "wer": "~ 11%"},
+        {"name": "Hindi (Hindi)", "code": "hi", "flag": "IN", "wer": "~ 11%"},
+        {"name": "Croato (Croatian)", "code": "hr", "flag": "HR", "wer": "~ 12%"},
+        {"name": "Bulgaro (Bulgarian)", "code": "bg", "flag": "BG", "wer": "~ 12%"},
+        {"name": "Lituano (Lithuanian)", "code": "lt", "flag": "LT", "wer": "~ 13%"},
+        {"name": "Serbo (Serbian)", "code": "sr", "flag": "RS", "wer": "~ 14%"},
+        {"name": "Lettone (Latvian)", "code": "lv", "flag": "LV", "wer": "~ 14%"},
+        {"name": "Ebraico (Hebrew)", "code": "he", "flag": "IL", "wer": "~ 15%"},
+        {"name": "Sloveno (Slovenian)", "code": "sl", "flag": "SI", "wer": "~ 15%"},
+        {"name": "Estone (Estonian)", "code": "et", "flag": "EE", "wer": "~ 16%"},
+        {"name": "Tamil (Tamil)", "code": "ta", "flag": "IN", "wer": "~ 16%"},
+        {"name": "Bengalese (Bengali)", "code": "bn", "flag": "BD", "wer": "~ 17%"},
+        {"name": "Urdu (Urdu)", "code": "ur", "flag": "PK", "wer": "~ 17%"},
+        {"name": "Tailandese (Thai)", "code": "th", "flag": "TH", "wer": "~ 18%"},
+        {"name": "Galiziano (Galician)", "code": "gl", "flag": "ES", "wer": "~ 18%"},
+        {"name": "Macedone (Macedonian)", "code": "mk", "flag": "MK", "wer": "~ 19%"},
+        {"name": "Persiano (Persian)", "code": "fa", "flag": "IR", "wer": "~ 20%"},
+        {"name": "Bosniaco (Bosnian)", "code": "bs", "flag": "BA", "wer": "~ 20%"},
+        {"name": "Telugu (Telugu)", "code": "te", "flag": "IN", "wer": "~ 21%"},
+        {"name": "Albanese (Albanian)", "code": "sq", "flag": "AL", "wer": "~ 22%"},
+        {"name": "Marathi (Marathi)", "code": "mr", "flag": "IN", "wer": "~ 23%"},
+        {"name": "Malese (Malayalam)", "code": "ml", "flag": "IN", "wer": "~ 24%"},
+        {"name": "Islandese (Icelandic)", "code": "is", "flag": "IS", "wer": "~ 25%"},
+        {"name": "Georgiano (Georgian)", "code": "ka", "flag": "GE", "wer": "~ 26%"},
+        {"name": "Gallese (Welsh)", "code": "cy", "flag": "GB", "wer": "~ 27%"},
+        {"name": "Kazako (Kazakh)", "code": "kk", "flag": "KZ", "wer": "~ 28%"},
+        {"name": "Tagalog (Tagalog)", "code": "tl", "flag": "PH", "wer": "~ 29%"},
+        {"name": "Punjabi (Punjabi)", "code": "pa", "flag": "PK", "wer": "~ 30%"},
+        {"name": "Armeno (Armenian)", "code": "hy", "flag": "AM", "wer": "~ 31%"},
+        {"name": "Nepalese (Nepali)", "code": "ne", "flag": "NP", "wer": "~ 32%"},
+        {"name": "Gujarati (Gujarati)", "code": "gu", "flag": "IN", "wer": "~ 33%"},
+        {"name": "Kannada (Kannada)", "code": "kn", "flag": "IN", "wer": "~ 34%"},
+        {"name": "Basco (Basque)", "code": "eu", "flag": "ES", "wer": "~ 35%"},
+        {"name": "Sundanese (Sundanese)", "code": "su", "flag": "ID", "wer": "~ 36%"},
+        {"name": "Giavanese (Javanese)", "code": "jv", "flag": "ID", "wer": "~ 37%"},
+        {"name": "Azero (Azerbaijani)", "code": "az", "flag": "AZ", "wer": "~ 38%"},
+        {"name": "Swahili (Swahili)", "code": "sw", "flag": "TZ", "wer": "~ 39%"},
+        {"name": "Sinhala (Sinhala)", "code": "si", "flag": "LK", "wer": "~ 40%"},
+        {"name": "Mongolo (Mongolian)", "code": "mn", "flag": "MN", "wer": "~ 41%"},
+        {"name": "Bielorusso (Belarusian)", "code": "be", "flag": "BY", "wer": "~ 42%"},
+        {"name": "Khmer (Khmer)", "code": "km", "flag": "KH", "wer": "~ 43%"},
+        {"name": "Uzbeco (Uzbek)", "code": "uz", "flag": "UZ", "wer": "~ 44%"},
+        {"name": "Pashto (Pashto)", "code": "ps", "flag": "AF", "wer": "~ 45%"},
+        {"name": "Lao (Lao)", "code": "lo", "flag": "LA", "wer": "~ 46%"},
+        {"name": "Creolo Haitiano (Haitian Creole)", "code": "ht", "flag": "HT", "wer": "~ 47%"},
+        {"name": "Somalo (Somali)", "code": "so", "flag": "SO", "wer": "~ 48%"},
+        {"name": "Maori (Maori)", "code": "mi", "flag": "NZ", "wer": "~ 49%"},
+        {"name": "Amarico (Amharic)", "code": "am", "flag": "ET", "wer": "> 50%"},
+        {"name": "Sindhi (Sindhi)", "code": "sd", "flag": "PK", "wer": "> 50%"},
+        {"name": "Bretone (Breton)", "code": "br", "flag": "FR", "wer": "> 50%"},
+        {"name": "Hausa (Hausa)", "code": "ha", "flag": "NG", "wer": "> 50%"},
+        {"name": "Shona (Shona)", "code": "sn", "flag": "ZW", "wer": "> 50%"},
+        {"name": "Lingala (Lingala)", "code": "ln", "flag": "CD", "wer": "> 50%"},
+        {"name": "Yoruba (Yoruba)", "code": "yo", "flag": "NG", "wer": "> 50%"},
+        {"name": "Malgascio (Malagasy)", "code": "mg", "flag": "MG", "wer": "> 50%"},
+        {"name": "Nynorsk (Norwegian Nynorsk)", "code": "nn", "flag": "NO", "wer": "> 50%"},
+        {"name": "Lussemburghese (Luxembourgish)", "code": "lb", "flag": "LU", "wer": "> 50%"},
+        {"name": "Maltese (Maltese)", "code": "mt", "flag": "MT", "wer": "> 50%"},
+        {"name": "Yiddish (Yiddish)", "code": "yi", "flag": "IL", "wer": "> 50%"},
+        {"name": "Occitano (Occitan)", "code": "oc", "flag": "FR", "wer": "> 60%"},
+        {"name": "Hawaiano (Hawaiian)", "code": "haw", "flag": "US", "wer": "> 60%"},
+        {"name": "Faroese (Faroese)", "code": "fo", "flag": "FO", "wer": "> 60%"},
+        {"name": "Tataro (Tatar)", "code": "tt", "flag": "RU", "wer": "> 60%"},
+        {"name": "Turkmeno (Turkmen)", "code": "tk", "flag": "TM", "wer": "> 60%"},
+        {"name": "Tagico (Tajik)", "code": "tg", "flag": "TJ", "wer": "> 60%"},
+        {"name": "Sanscrito (Sanskrit)", "code": "sa", "flag": "IN", "wer": "> 60%"},
+        {"name": "Tibetano (Tibetan)", "code": "bo", "flag": "CN", "wer": "> 60%"},
+        {"name": "Birmano (Burmese)", "code": "my", "flag": "MM", "wer": "> 60%"},
+        {"name": "Assamese (Assamese)", "code": "as", "flag": "IN", "wer": "> 60%"},
+        {"name": "Baschiro (Bashkir)", "code": "ba", "flag": "RU", "wer": "> 60%"},
+        {"name": "Afrikaans (Afrikaans)", "code": "af", "flag": "ZA", "wer": "> 60%"}
+    ]
+
+    def __init__(self, master, get_flag_image_fn, on_select):
         super().__init__(master)
         self.withdraw()
         self.overrideredirect(True)
         self.configure(fg_color="#09090b")
+        self._get_flag_image = get_flag_image_fn
+        self._on_select = on_select
         
         self.border_frame = ctk.CTkFrame(
             self, fg_color="#18181b", border_color="#27272a", border_width=1, corner_radius=8
         )
         self.border_frame.pack(fill=tk.BOTH, expand=True)
         
-        btn_it = ctk.CTkButton(
-            self.border_frame, text=" Italiano", image=img_it, compound="left", anchor="w",
-            fg_color="transparent", text_color="#fafafa",
-            hover_color="#27272a", font=("Segoe UI", 11),
-            height=28, corner_radius=6,
-            command=lambda: [on_select("it"), self.close()]
-        )
-        btn_it.pack(fill=tk.X, padx=4, pady=2)
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", lambda *args: self._populate_list())
         
-        btn_en = ctk.CTkButton(
-            self.border_frame, text=" Inglese", image=img_en, compound="left", anchor="w",
-            fg_color="transparent", text_color="#fafafa",
-            hover_color="#27272a", font=("Segoe UI", 11),
-            height=28, corner_radius=6,
-            command=lambda: [on_select("en"), self.close()]
+        self.search_entry = ctk.CTkEntry(
+            self.border_frame, textvariable=self.search_var, placeholder_text="Cerca lingua...",
+            fg_color="#09090b", border_color="#27272a", text_color="#fafafa",
+            font=("Segoe UI", 11), height=28, corner_radius=6
         )
-        btn_en.pack(fill=tk.X, padx=4, pady=2)
+        self.search_entry.pack(fill=tk.X, padx=6, pady=(6, 2))
+        
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.border_frame, fg_color="transparent", width=220, height=250
+        )
+        self.scroll_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 6))
+        
+        self._populate_list()
         
         self.bind("<Button-1>", self._on_click_outside)
         self.bind("<Escape>", lambda e: self.close())
         
+    def _populate_list(self):
+        for w in self.scroll_frame.winfo_children():
+            w.destroy()
+            
+        query = self.search_var.get().lower().strip()
+        
+        for lang in self.LANGUAGES:
+            name = lang["name"]
+            code = lang["code"]
+            flag = lang["flag"]
+            wer = lang["wer"]
+            
+            if query and query not in name.lower() and query not in code.lower():
+                continue
+                
+            img = self._get_flag_image(flag)
+            
+            btn_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+            btn_frame.pack(fill=tk.X, pady=1)
+            
+            btn = ctk.CTkButton(
+                btn_frame, text=f" {name}", image=img, compound="left", anchor="w",
+                fg_color="transparent", text_color="#fafafa",
+                hover_color="#27272a", font=("Segoe UI", 11),
+                height=28, corner_radius=6,
+                command=lambda c=code: [self._on_select(c), self.close()]
+            )
+            btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            
+            wer_lbl = ctk.CTkLabel(
+                btn_frame, text=wer, font=("Segoe UI", 10, "bold"), text_color="#a1a1aa", width=45, anchor="e"
+            )
+            wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
+            
     def _on_click_outside(self, event):
         x, y = event.x_root, event.y_root
         win_x = self.winfo_rootx()
@@ -175,10 +311,12 @@ class FlagDropdown(ctk.CTkToplevel):
             self.close()
             
     def open(self, x, y):
-        self.geometry(f"110x68+{int(x)}+{int(y)}")
+        self.search_var.set("")
+        self.geometry(f"250x300+{int(x)}+{int(y)}")
         self.deiconify()
         self.lift()
         self.focus_force()
+        self.search_entry.focus()
         self.grab_set()
         
     def close(self):
@@ -325,8 +463,30 @@ class WhisperApp:
             return Image.open(png_data)
 
         flags_dir = os.path.join(os.path.dirname(__file__), "assets", "flags")
-        self.img_it = ctk.CTkImage(light_image=load_svg_as_image(os.path.join(flags_dir, "IT.svg"), (24, 16)), size=(24, 16))
-        self.img_en = ctk.CTkImage(light_image=load_svg_as_image(os.path.join(flags_dir, "GB.svg"), (24, 16)), size=(24, 16))
+        self.flag_images_cache = {}
+        
+        def get_flag_image_fn(flag_code):
+            flag_code = flag_code.upper()
+            if flag_code not in self.flag_images_cache:
+                try:
+                    svg_path = os.path.join(flags_dir, f"{flag_code}.svg")
+                    if not os.path.exists(svg_path):
+                        svg_path = os.path.join(flags_dir, "XX.svg")
+                    self.flag_images_cache[flag_code] = ctk.CTkImage(
+                        light_image=load_svg_as_image(svg_path, (24, 16)), size=(24, 16)
+                    )
+                except Exception:
+                    try:
+                        self.flag_images_cache[flag_code] = ctk.CTkImage(
+                            light_image=load_svg_as_image(os.path.join(flags_dir, "XX.svg"), (24, 16)), size=(24, 16)
+                        )
+                    except Exception:
+                        self.flag_images_cache[flag_code] = None
+            return self.flag_images_cache[flag_code]
+            
+        self.get_flag_image = get_flag_image_fn
+        self.img_it = self.get_flag_image("IT")
+        self.img_en = self.get_flag_image("GB")
         
         self._setup_ui()
         self._load_model_async("Vosk Live", self.transcribe_lang)
@@ -492,7 +652,16 @@ class WhisperApp:
             status_border, text="Inizializzazione...", font=("Segoe UI", 11, "bold"),
             text_color="#a1a1aa", fg_color="#18181b", corner_radius=7
         )
-        self.status_label.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        self.status_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
+
+        status_divider = ctk.CTkFrame(status_border, fg_color="#27272a", width=1)
+        status_divider.pack(side=tk.LEFT, fill=tk.Y, pady=4)
+
+        self.wer_label = ctk.CTkLabel(
+            status_border, text="WER 4.7%", font=("Segoe UI", 11, "bold"),
+            text_color="#ef4444", fg_color="#18181b", corner_radius=7, width=80
+        )
+        self.wer_label.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(0, 1), pady=1)
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
@@ -525,16 +694,17 @@ class WhisperApp:
 
         self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), width=250, height=38)
         self.start_btn.pack(side=tk.LEFT, padx=(5, 0))
-        
         self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        self.visualizer_container = ctk.CTkFrame(self.bottom_btn_frame, fg_color="#18181b", width=140, height=38, border_color="#27272a", border_width=1)
-        self.visualizer_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        self.visualizer_container.pack_propagate(False)
-        
-        self.visualizer = tk.Canvas(self.visualizer_container, height=36, bg="#18181b", highlightthickness=0)
-        self.visualizer.pack(fill=tk.BOTH, expand=True, padx=2, pady=1)
+
+        self.ui_lang_btn = ctk.CTkButton(
+            self.bottom_btn_frame, text="UI ▾", image=self.img_it, compound="left",
+            command=self._show_ui_flag_dropdown, height=38,
+            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
+        )
+        self.ui_lang_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
 
         self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), width=250, height=38)
         self.save_audio_btn.pack(side=tk.LEFT, padx=(5, 5))
@@ -545,14 +715,12 @@ class WhisperApp:
         self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
         
-        self.ui_lang_btn = ctk.CTkButton(
-            self.close_btn_frame, text="UI ▾", image=self.img_it, compound="left",
-            command=self._show_ui_flag_dropdown, height=38,
-            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
-            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
-        )
-        self.ui_lang_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
+        self.visualizer_container = ctk.CTkFrame(self.close_btn_frame, fg_color="#18181b", width=140, height=38, border_color="#27272a", border_width=1)
+        self.visualizer_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.visualizer_container.pack_propagate(False)
+        
+        self.visualizer = tk.Canvas(self.visualizer_container, height=36, bg="#18181b", highlightthickness=0)
+        self.visualizer.pack(fill=tk.BOTH, expand=True, padx=2, pady=1)
 
         self.save_and_close_btn = ctk.CTkButton(
             self.close_btn_frame, 
@@ -990,35 +1158,48 @@ class WhisperApp:
     def _show_flag_dropdown(self):
         x = self.lang_btn.winfo_rootx()
         y = self.lang_btn.winfo_rooty() + self.lang_btn.winfo_height() + 2
-        dropdown = FlagDropdown(self.root, self.img_it, self.img_en, self._on_language_selected)
+        dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_language_selected)
         dropdown.open(x, y)
 
     def _on_language_selected(self, selected_lang):
         self.transcribe_lang = selected_lang
+        lang_item = next((l for l in FlagDropdown.LANGUAGES if l["code"] == selected_lang), None)
+        flag_code = lang_item["flag"] if lang_item else selected_lang.upper()
+        self.lang_btn.configure(image=self.get_flag_image(flag_code))
+        
+        # Display WER on status bar label
+        wer = lang_item["wer"] if lang_item else "---%"
+        self.wer_label.configure(text=f"WER {wer}")
+        
         if selected_lang == "en":
-            self.lang_btn.configure(image=self.img_en)
             self._set_status("Lingua: Inglese")
-        else:
-            self.lang_btn.configure(image=self.img_it)
+        elif selected_lang == "it":
             self._set_status("Lingua: Italiano")
+        else:
+            name = lang_item["name"].split(" (")[0] if lang_item else selected_lang.upper()
+            self._set_status(f"Lingua: {name}")
         
         self._load_model_async(self.model_combo.get(), self.transcribe_lang)
 
     def _show_target_flag_dropdown(self):
         x = self.target_lang_btn.winfo_rootx()
         y = self.target_lang_btn.winfo_rooty() + self.target_lang_btn.winfo_height() + 2
-        dropdown = FlagDropdown(self.root, self.img_it, self.img_en, self._on_target_language_selected)
+        dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_target_language_selected)
         dropdown.open(x, y)
 
     def _on_target_language_selected(self, selected_lang):
         old_lang = self.target_lang
         self.target_lang = selected_lang
+        lang_item = next((l for l in FlagDropdown.LANGUAGES if l["code"] == selected_lang), None)
+        flag_code = lang_item["flag"] if lang_item else selected_lang.upper()
+        self.target_lang_btn.configure(image=self.get_flag_image(flag_code))
         if selected_lang == "en":
-            self.target_lang_btn.configure(image=self.img_en)
             self._set_status("Traduzione in: Inglese")
-        else:
-            self.target_lang_btn.configure(image=self.img_it)
+        elif selected_lang == "it":
             self._set_status("Traduzione in: Italiano")
+        else:
+            name = lang_item["name"].split(" (")[0] if lang_item else selected_lang.upper()
+            self._set_status(f"Traduzione in: {name}")
         self._translate_existing_text(old_lang, selected_lang)
 
     def _translate_existing_text(self, old_lang, new_lang):
@@ -1055,7 +1236,7 @@ class WhisperApp:
     def _show_ui_flag_dropdown(self):
         x = self.ui_lang_btn.winfo_rootx()
         y = self.ui_lang_btn.winfo_rooty() + self.ui_lang_btn.winfo_height() + 2
-        dropdown = FlagDropdown(self.root, self.img_it, self.img_en, self._on_ui_language_selected)
+        dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_ui_language_selected)
         dropdown.open(x, y)
 
     def _on_ui_language_selected(self, selected_lang):
@@ -1063,8 +1244,10 @@ class WhisperApp:
 
     def _update_ui_language(self, lang_code):
         self.ui_lang = lang_code
+        lang_item = next((l for l in FlagDropdown.LANGUAGES if l["code"] == lang_code), None)
+        flag_code = lang_item["flag"] if lang_item else lang_code.upper()
+        self.ui_lang_btn.configure(image=self.get_flag_image(flag_code))
         if lang_code == "en":
-            self.ui_lang_btn.configure(image=self.img_en)
             self.model_label.configure(text="Transcription Engine:")
             self.dest_btn.configure(text="📂 Destination")
             self.device_label.configure(text="Audio Input:")
