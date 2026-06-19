@@ -231,7 +231,7 @@ class WhisperApp:
         
         ctk.CTkLabel(self.model_frame, text="Seleziona Modello Whisper:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
         
-        model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=120)
+        model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=130)
         model_border.pack(side=tk.LEFT, padx=(0, 8))
         model_border.pack_propagate(False)
         
@@ -251,16 +251,16 @@ class WhisperApp:
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
-        self.dest_btn.pack(side=tk.LEFT, padx=2)
+        self.dest_btn.pack(side=tk.RIGHT, padx=2)
         self._set_btn_state(self.dest_btn, "normal", "secondary")
         
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
         
-        ctk.CTkLabel(device_frame, text="Seleziona Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 10))
+        ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa").pack(side=tk.LEFT, padx=(0, 8))
         
         device_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30)
-        device_border.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        device_border.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         device_border.pack_propagate(False)
         self.devices = []
         device_names = []
@@ -330,18 +330,21 @@ class WhisperApp:
                     selected_device = name
                     break
         self.device_combo.set(selected_device)
+
+        status_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30, width=150)
+        status_border.pack(side=tk.RIGHT, padx=(10, 0))
+        status_border.pack_propagate(False)
+
+        self.status_label = ctk.CTkLabel(
+            status_border, text="Inizializzazione...", font=("Segoe UI", 11, "bold"),
+            text_color="#a1a1aa", fg_color="#18181b", corner_radius=7
+        )
+        self.status_label.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
         self.progress_bar.pack(fill=tk.X, expand=True)
         self.progress_bar.set(0.0)
-        
-        self.status_frame = ctk.CTkFrame(main_frame, fg_color="#18181b", border_color="#27272a", border_width=1)
-        self.status_frame.pack(fill=tk.X, pady=(0, 15))
-        
-        ctk.CTkLabel(self.status_frame, text="Stato", font=("Segoe UI", 10, "bold"), text_color="#fafafa").pack(anchor=tk.W, padx=15, pady=(10, 2))
-        self.status_label = ctk.CTkLabel(self.status_frame, text="Inizializzazione...", font=("Segoe UI", 11), text_color="#a1a1aa")
-        self.status_label.pack(anchor=tk.W, padx=15, pady=(0, 10))
         
         text_frame = ctk.CTkFrame(main_frame, fg_color="#18181b", border_color="#27272a", border_width=1)
         text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
