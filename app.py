@@ -186,6 +186,11 @@ class WhisperApp:
         self.dest_dir = os.path.expanduser("~")
         self.transcribe_lang = "it"
         
+        from PIL import Image
+        assets_dir = os.path.join(os.path.dirname(__file__), "assets")
+        self.img_it = ctk.CTkImage(light_image=Image.open(os.path.join(assets_dir, "it.png")), size=(24, 16))
+        self.img_en = ctk.CTkImage(light_image=Image.open(os.path.join(assets_dir, "en.png")), size=(24, 16))
+        
         self._setup_ui()
         self._update_action_buttons()
         
@@ -252,7 +257,7 @@ class WhisperApp:
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         
-        self.lang_btn = ctk.CTkButton(self.model_frame, text="🇮🇹", command=self._toggle_language, font=("Segoe UI", 16), width=46)
+        self.lang_btn = ctk.CTkButton(self.model_frame, text="", image=self.img_it, command=self._toggle_language, width=46)
         self.lang_btn.pack(side=tk.RIGHT, padx=2)
         self._set_btn_state(self.lang_btn, "normal", "secondary")
 
@@ -710,11 +715,11 @@ class WhisperApp:
     def _toggle_language(self):
         if self.transcribe_lang == "it":
             self.transcribe_lang = "en"
-            self.lang_btn.configure(text="🇬🇧")
+            self.lang_btn.configure(text="", image=self.img_en)
             self._set_status("Lingua: Inglese")
         else:
             self.transcribe_lang = "it"
-            self.lang_btn.configure(text="🇮🇹")
+            self.lang_btn.configure(text="", image=self.img_it)
             self._set_status("Lingua: Italiano")
 
     def _transcription_worker(self):
