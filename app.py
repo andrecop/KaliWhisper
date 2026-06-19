@@ -814,7 +814,7 @@ class WhisperApp:
 
     def _setup_ui(self):
         main_frame = ctk.CTkFrame(self.root, fg_color="#09090b")
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(20, 2))
         
         self.model_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.model_frame.pack(fill=tk.X, pady=(0, 10))
@@ -1045,7 +1045,7 @@ class WhisperApp:
         current_year = datetime.now().year
         copyright_text = f"©2026 {self.alias}" if current_year == 2026 else f"©2026-{current_year} {self.alias}"
         self.copyright_label = ctk.CTkLabel(main_frame, text=copyright_text, font=("Segoe UI", 10), text_color="#52525b")
-        self.copyright_label.pack(pady=(2, 0))
+        self.copyright_label.pack(pady=0)
 
     def _set_status(self, text):
         self.status_scroll_id = getattr(self, "status_scroll_id", 0) + 1
