@@ -17,6 +17,15 @@ import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
 from faster_whisper import WhisperModel
+import sys
+from customtkinter.windows.widgets.core_widget_classes import DropdownMenu
+
+_orig_menu_configure = DropdownMenu._configure_menu_for_platforms
+def _custom_menu_configure(self):
+    _orig_menu_configure(self)
+    if sys.platform.startswith("win"):
+        tk.Menu.configure(self, borderwidth=0, activeborderwidth=0)
+DropdownMenu._configure_menu_for_platforms = _custom_menu_configure
 
 ctk.set_appearance_mode("dark")
 
