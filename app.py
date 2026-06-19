@@ -244,7 +244,9 @@ class WhisperApp:
         self.stream = None
         self.rec = None
         
-        self.dest_dir = os.path.expanduser("~")
+        self.dest_root = os.path.join(os.path.dirname(__file__), "recorded")
+        self.dest_dir = self.dest_root
+        self.custom_dest = False
         self.transcribe_lang = "it"
         
         from PIL import Image
@@ -588,6 +590,10 @@ class WhisperApp:
                 messagebox.showwarning("Attenzione", "Il modello non è ancora pronto.")
                 return
             self.is_recording = True
+            if not getattr(self, "custom_dest", False):
+                session_name = datetime.now().strftime("%Y-%m-%d %H.%M.%S")
+                self.dest_dir = os.path.join(self.dest_root, session_name)
+                os.makedirs(self.dest_dir, exist_ok=True)
             self.start_btn.configure(text="■ Ferma Trascrizione")
             self._set_btn_state(self.start_btn, "normal", "danger")
             self._set_btn_state(self.save_btn, "disabled", "info")
@@ -789,6 +795,7 @@ class WhisperApp:
         selected_dir = filedialog.askdirectory(initialdir=self.dest_dir, title="Seleziona cartella di destinazione")
         if selected_dir:
             self.dest_dir = selected_dir
+            self.custom_dest = True
             self._set_status(f"Destinazione salvataggio impostata su: {self.dest_dir}")
 
     def _save_transcription(self):
