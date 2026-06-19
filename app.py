@@ -529,7 +529,7 @@ class WhisperApp:
         self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
         
-        self.visualizer_container = ctk.CTkFrame(self.bottom_btn_frame, fg_color="#18181b", height=38, border_color="#27272a", border_width=1)
+        self.visualizer_container = ctk.CTkFrame(self.bottom_btn_frame, fg_color="#18181b", width=140, height=38, border_color="#27272a", border_width=1)
         self.visualizer_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self.visualizer_container.pack_propagate(False)
         
