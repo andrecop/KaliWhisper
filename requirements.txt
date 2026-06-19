@@ -1,5 +1,6 @@
 customtkinter
-faster-whisper
+vosk
+numpy
 pyaudio
 huggingface_hub
 tqdm

@@ -1,16 +1,16 @@
 # KaliWhisper
 
-A lightweight, cross-platform (Windows & Linux) local voice-to-text desktop application utilizing `faster-whisper`. Features a premium dark CustomTkinter user interface inspired by Shadcn design, automatic system default microphone discovery, dynamic state tracking, model lifecycle control (download, delete, update for tiny to medium models), flag-based language toggling (Italian/English), and customizable destination folder paths.
+A lightweight, cross-platform (Windows & Linux) local voice-to-text desktop application utilizing `vosk` for real-time speech recognition. Features a premium dark CustomTkinter user interface inspired by Shadcn design, automatic system default microphone discovery, real-time wave/RMS visualizer, model caching, flag-based language toggling (Italian/English), and customizable destination folder paths.
 
 ## Features
 
-- **Local & Private**: All transcription is done offline on your machine using `faster-whisper`.
+- **Real-Time Offline Transcription**: Instant, word-by-word transcription as you speak, powered by `vosk` offline model recognition.
 - **Premium UI**: Modern dark theme interface built with CustomTkinter and custom Shadcn-style dropdown menus.
+- **Real-Time Visualizer**: Interactive canvas showing sound activity and level feedback.
 - **Cross-Platform**: Full support for both Windows and Linux environments.
 - **Microphone Auto-Detection**: Automatically identifies and selects the default system input device on launch.
-- **Model Management**: Download, delete, and check/apply updates for Whisper models (`tiny`, `base`, `small`, `medium`) directly from the UI with real-time download progress tracking.
-- **Split Controls**: Dedicated start/stop transcription toggles and save functionality.
-- **Language Selection**: Toggle between Italian and English transcription using flag assets.
+- **Language & Model Management**: Toggle between Italian and English; models are downloaded automatically on first load.
+- **Text Controls**: Quick save to text files and a reset trash button to clear transcription state.
 - **Custom Output Folder**: Select where to save your transcription files via a folder selection explorer.
 
 ## Installation
@@ -39,7 +39,7 @@ sudo apt install python3-dev portaudio19-dev
    ```bash
    pip install -r requirements.txt
    ```
-   *(Ensure dependencies like `customtkinter`, `faster-whisper`, `pyaudio`, `huggingface_hub`, `tqdm`, `svglib`, `reportlab`, and `Pillow` are installed)*
+   *(Ensure dependencies like `customtkinter`, `vosk`, `numpy`, `pyaudio`, `huggingface_hub`, `tqdm`, `svglib`, `reportlab`, and `Pillow` are installed)*
 
 ## Usage
 
