@@ -184,6 +184,7 @@ class WhisperApp:
         self.current_file_total = 0
         self.current_file_progress = 0
         self.dest_dir = os.path.expanduser("~")
+        self.transcribe_lang = "it"
         
         self._setup_ui()
         self._update_action_buttons()
@@ -250,6 +251,11 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=self._download_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
+        
+        self.lang_btn = ctk.CTkButton(self.model_frame, text="🇮🇹", command=self._toggle_language, font=("Segoe UI", 12), width=40)
+        self.lang_btn.pack(side=tk.RIGHT, padx=2)
+        self._set_btn_state(self.lang_btn, "normal", "secondary")
+
         self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
         self.dest_btn.pack(side=tk.RIGHT, padx=2)
         self._set_btn_state(self.dest_btn, "normal", "secondary")
@@ -701,6 +707,16 @@ class WhisperApp:
             
         self._update_save_button_state()
 
+    def _toggle_language(self):
+        if self.transcribe_lang == "it":
+            self.transcribe_lang = "en"
+            self.lang_btn.configure(text="🇬🇧")
+            self._set_status("Lingua di trascrizione: Inglese")
+        else:
+            self.transcribe_lang = "it"
+            self.lang_btn.configure(text="🇮🇹")
+            self._set_status("Lingua di trascrizione: Italiano")
+
     def _transcription_worker(self):
         while True:
             item = self.transcription_queue.get()
@@ -709,7 +725,7 @@ class WhisperApp:
             wav_path = item
             try:
                 if self.model is not None:
-                    segments, info = self.model.transcribe(wav_path, beam_size=5)
+                    segments, info = self.model.transcribe(wav_path, beam_size=5, language=self.transcribe_lang)
                     text = "".join([segment.text for segment in segments])
                     if text.strip():
                         self.root.after(0, self._append_text, text)
