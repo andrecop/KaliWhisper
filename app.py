@@ -303,7 +303,7 @@ class FlagDropdown(ctk.CTkToplevel):
         {"name": "Afrikaans (Afrikaans)", "code": "af", "flag": "ZA", "wer": "> 60%"}
     ]
 
-    def __init__(self, master, get_flag_image_fn):
+    def __init__(self, master, get_flag_image_fn, only_localization=False):
         super().__init__(master)
         self.withdraw()
         self.overrideredirect(True)
@@ -352,8 +352,22 @@ class FlagDropdown(ctk.CTkToplevel):
         self.scroll_content.bind("<Configure>", configure_scroll)
         self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfig("self.scroll_content", width=e.width))
         
+        languages_to_use = self.LANGUAGES
+        if only_localization:
+            languages_to_use = []
+            loc_dir = os.path.join(os.path.dirname(__file__), "assets", "localization")
+            if os.path.exists(loc_dir):
+                for filename in os.listdir(loc_dir):
+                    if filename.endswith(".json"):
+                        code = filename[:-5]
+                        lang_item = next((l for l in self.LANGUAGES if l["code"] == code), None)
+                        if lang_item:
+                            languages_to_use.append(lang_item)
+                        else:
+                            languages_to_use.append({"name": code.upper(), "code": code, "flag": "XX", "wer": ""})
+                            
         self.rows = []
-        for lang in self.LANGUAGES:
+        for lang in languages_to_use:
             name = lang["name"]
             code = lang["code"]
             flag = lang["flag"]
@@ -1373,6 +1387,7 @@ class WhisperApp:
         if hasattr(self, "lang_dropdown"):
             return
         self.lang_dropdown = FlagDropdown(self.root, self.get_flag_photo_image)
+        self.ui_lang_dropdown = FlagDropdown(self.root, self.get_flag_photo_image, only_localization=True)
 
     def _show_flag_dropdown(self):
         self._init_dropdowns()
@@ -1490,7 +1505,7 @@ class WhisperApp:
 
     def _show_ui_flag_dropdown(self):
         self._init_dropdowns()
-        self.lang_dropdown.open(self.ui_lang_btn, self._on_ui_language_selected)
+        self.ui_lang_dropdown.open(self.ui_lang_btn, self._on_ui_language_selected)
 
     def _on_ui_language_selected(self, selected_lang):
         self._update_ui_language(selected_lang)
