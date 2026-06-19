@@ -674,8 +674,8 @@ class WhisperApp:
             sys.exit(1)
                 
         self.root.title(f"KaliWhisper v{self.version}")
-        self.root.geometry("650x600")
-        self.root.minsize(550, 480)
+        self.root.geometry("650x630")
+        self.root.minsize(550, 500)
         self.root.configure(fg_color="#09090b")
         
         self.model = None
@@ -1041,6 +1041,11 @@ class WhisperApp:
         self._set_btn_state(self.play_btn, "disabled", "info")
         self._set_btn_state(self.save_audio_btn, "disabled", "info")
         self._set_btn_state(self.save_and_close_btn, "disabled", "secondary")
+
+        current_year = datetime.now().year
+        copyright_text = f"©2026 {self.alias}" if current_year == 2026 else f"©2026-{current_year} {self.alias}"
+        self.copyright_label = ctk.CTkLabel(main_frame, text=copyright_text, font=("Segoe UI", 10), text_color="#52525b")
+        self.copyright_label.pack(pady=(15, 0))
 
     def _set_status(self, text):
         self.status_scroll_id = getattr(self, "status_scroll_id", 0) + 1
