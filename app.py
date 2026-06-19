@@ -1036,7 +1036,9 @@ class WhisperApp:
         def load_task():
             download_started = [False]
             last_pct = [-1]
+            last_mb = [-1.0]
             active_downloads = [0]
+            download_registry = {}
             self.status_canvas = None
             
             def progress_callback(action, val, desc):
@@ -1044,6 +1046,8 @@ class WhisperApp:
                     download_started[0] = True
                     active_downloads[0] += 1
                     last_pct[0] = 0
+                    last_mb[0] = 0.0
+                    download_registry[val] = {"n": 0, "total": val.total or 0, "desc": desc}
                     def on_init():
                         self.status_pct = 0
                         self.status_text_str = f"Download del modello {engine_name} in corso... 0%"
@@ -1073,24 +1077,30 @@ class WhisperApp:
                             self.status_canvas.update()
                     self.root.after(0, on_init)
                 elif action == "update" and download_started[0]:
-                    total = getattr(val, "total", 0) or 0
-                    n = getattr(val, "n_custom", 0)
+                    if val in download_registry:
+                        download_registry[val]["n"] = val.n_custom
+                        if val.total:
+                            download_registry[val]["total"] = val.total
+                    total = sum(item["total"] for item in download_registry.values())
+                    n = sum(item["n"] for item in download_registry.values())
                     if total > 0:
                         pct = min(100, max(0, int((n / total) * 100)))
-                        if pct == last_pct[0]:
-                            return
-                        last_pct[0] = pct
                         size_mb = total / (1024 * 1024)
                         curr_mb = n / (1024 * 1024)
-                        def on_update(p=pct, c=curr_mb, s=size_mb):
-                            self.status_pct = p
-                            self.status_text_str = f"Download del modello {engine_name} ({c:.1f}/{s:.1f} MB)... {p}%"
-                            if hasattr(self, "draw_canvas_fn"):
-                                self.draw_canvas_fn()
-                            if self.status_canvas:
-                                self.status_canvas.update()
-                        self.root.after(0, on_update)
+                        if pct != last_pct[0] or abs(curr_mb - last_mb[0]) >= 0.1 or pct == 100:
+                            last_pct[0] = pct
+                            last_mb[0] = curr_mb
+                            def on_update(p=pct, c=curr_mb, s=size_mb):
+                                self.status_pct = p
+                                self.status_text_str = f"Download del modello {engine_name} ({c:.1f}/{s:.1f} MB)... {p}%"
+                                if hasattr(self, "draw_canvas_fn"):
+                                    self.draw_canvas_fn()
+                                if self.status_canvas:
+                                    self.status_canvas.update()
+                            self.root.after(0, on_update)
                 elif action == "close":
+                    if val in download_registry:
+                        download_registry[val]["n"] = download_registry[val]["total"]
                     active_downloads[0] -= 1
                     if active_downloads[0] <= 0:
                         def on_close():
