@@ -239,6 +239,7 @@ class WhisperApp:
         self.latest_seq_processed = 0
         self.save_and_close_on_finish = False
         self.close_on_complete = False
+        self.is_playing = False
         self.pa = pyaudio.PyAudio()
         self.stream = None
         self.rec = None
@@ -442,25 +443,28 @@ class WhisperApp:
         self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        save_container = ctk.CTkFrame(button_frame, fg_color="transparent")
-        save_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
-        save_container.columnconfigure(0, weight=2)
-        save_container.columnconfigure(1, weight=1)
-        
-        self.save_btn = ctk.CTkButton(save_container, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
-        self.save_btn.grid(row=0, column=0, sticky="ew", padx=(0, 2))
-        
-        self.save_audio_btn = ctk.CTkButton(save_container, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=38)
-        self.save_audio_btn.grid(row=0, column=1, sticky="ew", padx=(2, 0))
+        self.save_btn = ctk.CTkButton(button_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
         
         self.reset_btn = ctk.CTkButton(button_frame, text="🗑", command=self._reset_transcription, font=("Segoe UI", 13), width=38, height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
         self.reset_btn.pack(side=tk.LEFT, padx=(5, 0))
         
         self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
+        self.bottom_btn_frame.columnconfigure(0, weight=2)
+        self.bottom_btn_frame.columnconfigure(1, weight=1)
+        
+        self.play_btn = ctk.CTkButton(self.bottom_btn_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), height=38)
+        self.play_btn.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        
+        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_audio_btn.grid(row=0, column=1, sticky="ew", padx=(2, 0))
+        
+        self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
         
         self.save_and_close_btn = ctk.CTkButton(
-            self.bottom_btn_frame, 
+            self.close_btn_frame, 
             text="💾 Salva tutto e Chiudi al termine", 
             command=self._save_all_and_close_on_finish, 
             font=("Segoe UI", 11, "bold"), 
@@ -475,6 +479,7 @@ class WhisperApp:
 
         self._set_btn_state(self.start_btn, "disabled", "success")
         self._set_btn_state(self.save_btn, "disabled", "info")
+        self._set_btn_state(self.play_btn, "disabled", "info")
         self._set_btn_state(self.save_audio_btn, "disabled", "info")
         self._set_btn_state(self.save_and_close_btn, "disabled", "secondary")
 
@@ -567,8 +572,10 @@ class WhisperApp:
         else:
             self._set_btn_state(self.save_btn, "disabled", "info")
         if not self.is_recording and getattr(self, "all_recorded_audio", None):
+            self._set_btn_state(self.play_btn, "normal", "info")
             self._set_btn_state(self.save_audio_btn, "normal", "info")
         else:
+            self._set_btn_state(self.play_btn, "disabled", "info")
             self._set_btn_state(self.save_audio_btn, "disabled", "info")
         if not self.is_recording and (text_content or getattr(self, "all_recorded_audio", None)):
             self._set_btn_state(self.save_and_close_btn, "normal", "secondary")
@@ -584,6 +591,7 @@ class WhisperApp:
             self.start_btn.configure(text="■ Ferma Trascrizione")
             self._set_btn_state(self.start_btn, "normal", "danger")
             self._set_btn_state(self.save_btn, "disabled", "info")
+            self._set_btn_state(self.play_btn, "disabled", "info")
             self._set_btn_state(self.save_audio_btn, "disabled", "info")
             self.all_recorded_audio = []
             self.model_combo.configure(state="disabled")
@@ -1105,6 +1113,66 @@ class WhisperApp:
             )
         else:
             self._on_closing_forced()
+    def _toggle_playback(self):
+        if getattr(self, "is_playing", False):
+            self.is_playing = False
+        else:
+            self._play_and_highlight()
+
+    def _play_and_highlight(self):
+        if not self.all_recorded_audio:
+            return
+        self.is_playing = True
+        self.play_btn.configure(text="■ Ferma Ascolto", fg_color="#ef4444", hover_color="#dc2626")
+        self.save_audio_btn.configure(state="disabled")
+        self.save_btn.configure(state="disabled")
+        self.start_btn.configure(state="disabled")
+        self.save_and_close_btn.configure(state="disabled")
+        def play_task():
+            try:
+                raw_audio = b"".join(self.all_recorded_audio)
+                total_bytes = len(raw_audio)
+                full_text = self.text_area.get("1.0", "end").strip()
+                import re
+                words_ranges = []
+                for m in re.finditer(r'\S+', full_text):
+                    words_ranges.append((f"1.0 + {m.start()}c", f"1.0 + {m.end()}c"))
+                words_count = len(words_ranges)
+                if words_count == 0:
+                    return
+                bytes_per_word = total_bytes // words_count
+                p = pyaudio.PyAudio()
+                out_stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, output=True)
+                chunk_size = 1024
+                for i, (start, end) in enumerate(words_ranges):
+                    if not self.is_playing:
+                        break
+                    self.root.after(0, self._highlight_word, start, end)
+                    word_audio = raw_audio[i * bytes_per_word : (i + 1) * bytes_per_word]
+                    for offset in range(0, len(word_audio), chunk_size):
+                        if not self.is_playing:
+                            break
+                        out_stream.write(word_audio[offset:offset+chunk_size])
+                out_stream.stop_stream()
+                out_stream.close()
+                p.terminate()
+            except Exception as e:
+                print(f"TRACER: Playback error: {e}", flush=True)
+            finally:
+                self.is_playing = False
+                self.root.after(0, self._on_playback_finished)
+        threading.Thread(target=play_task, daemon=True).start()
+
+    def _highlight_word(self, start, end):
+        self.text_area.tag_remove("highlight", "1.0", "end")
+        self.text_area.tag_add("highlight", start, end)
+        self.text_area.tag_config("highlight", background="#2563eb", foreground="#ffffff")
+
+    def _on_playback_finished(self):
+        self.text_area.tag_remove("highlight", "1.0", "end")
+        self.play_btn.configure(text="🔊 Ascolta Trascrizione", fg_color="#18181b", hover_color="#27272a")
+        self._update_save_button_state()
+        self.start_btn.configure(state="normal")
 
 if __name__ == "__main__":
     root = ctk.CTk()
