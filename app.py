@@ -371,11 +371,11 @@ class WhisperApp:
         self.model_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.model_frame.pack(fill=tk.X, pady=(0, 10))
         
-        self.model_label = ctk.CTkLabel(self.model_frame, text="Motore di Trascrizione:", font=("Segoe UI", 11, "bold"), text_color="#fafafa")
+        self.model_label = ctk.CTkLabel(self.model_frame, text="Motore di Trascrizione:", font=("Segoe UI", 11, "bold"), text_color="#fafafa", width=140, anchor="w")
         self.model_label.pack(side=tk.LEFT, padx=(0, 10))
         
-        model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30, width=130)
-        model_border.pack(side=tk.LEFT, padx=(0, 8))
+        model_border = ctk.CTkFrame(self.model_frame, fg_color="#27272a", corner_radius=8, height=30)
+        model_border.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         model_border.pack_propagate(False)
         
         self.model_combo = ctk.CTkOptionMenu(
@@ -400,8 +400,8 @@ class WhisperApp:
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
         
-        self.device_label = ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa")
-        self.device_label.pack(side=tk.LEFT, padx=(0, 8))
+        self.device_label = ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa", width=140, anchor="w")
+        self.device_label.pack(side=tk.LEFT, padx=(0, 10))
         
         self.target_lang_btn = ctk.CTkButton(
             device_frame, text=" ▾", image=self.img_it, compound="left",
