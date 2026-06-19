@@ -202,6 +202,10 @@ class WhisperApp:
                 btn.configure(fg_color="#ffffff", text_color="#09090b", hover_color="#e4e4e7")
             elif btn_type == "danger":
                 btn.configure(fg_color="#ef4444", text_color="#ffffff", hover_color="#f87171")
+            elif btn_type == "success":
+                btn.configure(fg_color="#22c55e", text_color="#ffffff", hover_color="#4ade80")
+            elif btn_type == "info":
+                btn.configure(fg_color="#3b82f6", text_color="#ffffff", hover_color="#60a5fa")
             else:
                 btn.configure(fg_color="#27272a", text_color="#fafafa", hover_color="#3f3f46")
         else:
@@ -209,7 +213,11 @@ class WhisperApp:
             if btn_type == "primary":
                 btn.configure(fg_color="#27272a", text_color="#71717a")
             elif btn_type == "danger":
-                btn.configure(fg_color="#18181b", text_color="#7f1d1d")
+                btn.configure(fg_color="#7f1d1d", text_color="#991b1b")
+            elif btn_type == "success":
+                btn.configure(fg_color="#14532d", text_color="#166534")
+            elif btn_type == "info":
+                btn.configure(fg_color="#1e3a8a", text_color="#1e40af")
             else:
                 btn.configure(fg_color="#18181b", text_color="#52525b")
 
@@ -343,18 +351,19 @@ class WhisperApp:
             activate_scrollbars=True
         )
         self.text_area.pack(fill=tk.BOTH, expand=True, padx=8, pady=(0, 10))
+        self.text_area.bind("<KeyRelease>", lambda e: self._update_save_button_state())
         
         button_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         button_frame.pack(fill=tk.X)
         
-        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._start_recording, font=("Segoe UI", 11, "bold"), height=38)
+        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
         self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        self.stop_btn = ctk.CTkButton(button_frame, text="■ Ferma e Salva", command=self._stop_recording, font=("Segoe UI", 11, "bold"), height=38)
-        self.stop_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+        self.save_btn = ctk.CTkButton(button_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         
-        self._set_btn_state(self.start_btn, "disabled", "primary")
-        self._set_btn_state(self.stop_btn, "disabled", "secondary")
+        self._set_btn_state(self.start_btn, "disabled", "success")
+        self._set_btn_state(self.save_btn, "disabled", "info")
 
     def _set_status(self, text):
         self.status_label.configure(text=text)
@@ -386,15 +395,15 @@ class WhisperApp:
             self.delete_btn.pack(side=tk.LEFT, padx=2)
             self._set_btn_state(self.delete_btn, "normal", "danger")
             if self.model is not None and self.model_name == model_name:
-                self._set_btn_state(self.start_btn, "normal", "primary")
+                self._set_btn_state(self.start_btn, "normal", "success")
             else:
-                self._set_btn_state(self.start_btn, "disabled", "primary")
+                self._set_btn_state(self.start_btn, "disabled", "success")
             self._check_for_updates_async(model_name)
         else:
             self.delete_btn.pack_forget()
             self.download_btn.pack(side=tk.LEFT, padx=2)
             self._set_btn_state(self.download_btn, "normal", "secondary")
-            self._set_btn_state(self.start_btn, "disabled", "primary")
+            self._set_btn_state(self.start_btn, "disabled", "success")
 
     def _check_for_updates_async(self, model_name):
         def check_task():
@@ -443,7 +452,7 @@ class WhisperApp:
     def _load_model_async(self, model_name):
         self.model_combo.configure(state="disabled")
         self.device_combo.configure(state="disabled")
-        self._set_btn_state(self.start_btn, "disabled", "primary")
+        self._set_btn_state(self.start_btn, "disabled", "success")
         self._set_btn_state(self.delete_btn, "disabled", "danger")
         self._set_btn_state(self.update_btn, "disabled", "secondary")
         self._set_status(f"Caricamento modello {model_name}...")
@@ -468,13 +477,17 @@ class WhisperApp:
     def _on_model_loaded(self):
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
+        self._set_btn_state(self.start_btn, "normal", "success")
         self._update_action_buttons()
+        self._update_save_button_state()
         self._set_status("In attesa...")
 
     def _on_model_load_failed(self, error):
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
+        self._set_btn_state(self.start_btn, "disabled", "success")
         self._update_action_buttons()
+        self._update_save_button_state()
         self._set_status(f"Errore caricamento modello: {error}")
         messagebox.showerror("Errore", f"Impossibile caricare il modello Whisper: {error}")
 
@@ -557,7 +570,7 @@ class WhisperApp:
             import gc
             gc.collect()
             self.model = None
-            self._set_btn_state(self.start_btn, "disabled", "primary")
+            self._set_btn_state(self.start_btn, "disabled", "success")
             
         model_dir = os.path.join(os.path.dirname(__file__), "models")
         repo_id = f"Systran/faster-whisper-{model_name}"
@@ -593,106 +606,46 @@ class WhisperApp:
         self._set_status(f"Verifica aggiornamenti modello {model_name}...")
         self._download_model_thread(model_name)
 
-    def _start_recording(self):
-        if self.model is None:
-            messagebox.showwarning("Attenzione", "Il modello non è ancora pronto.")
-            return
-            
-        self.is_recording = True
-        self._set_btn_state(self.start_btn, "disabled", "primary")
-        self._set_btn_state(self.stop_btn, "normal", "secondary")
-        self.model_combo.configure(state="disabled")
-        self.device_combo.configure(state="disabled")
-        self._set_btn_state(self.delete_btn, "disabled", "danger")
-        self._set_btn_state(self.update_btn, "disabled", "secondary")
-        self.text_area.configure(state="disabled")
-        self._set_status("Registrazione in corso...")
-        
-        threading.Thread(target=self._recording_worker, daemon=True).start()
+    def _update_save_button_state(self):
+        text_content = self.text_area.get("1.0", "end").strip()
+        if not self.is_recording and text_content:
+            self._set_btn_state(self.save_btn, "normal", "info")
+        else:
+            self._set_btn_state(self.save_btn, "disabled", "info")
 
-    def _recording_worker(self):
-        selected_name = self.device_combo.get()
-        device_idx = -1
-        for idx, name in self.devices:
-            if name == selected_name:
-                device_idx = idx
-                break
-        try:
-            kwargs = {
-                "format": pyaudio.paInt16,
-                "channels": 1,
-                "rate": 16000,
-                "input": True,
-                "frames_per_buffer": 1024
-            }
-            if device_idx != -1:
-                kwargs["input_device_index"] = device_idx
-            self.stream = self.pa.open(**kwargs)
-        except Exception as e:
-            self.root.after(0, self._set_status, f"Errore microfono: {e}")
-            self.root.after(0, self._on_recording_failed)
-            return
-
-        frames = []
-        chunk_length = 4.0
-        samples_per_chunk = int(16000 * chunk_length)
-        
-        while self.is_recording:
-            try:
-                data = self.stream.read(1024, exception_on_overflow=False)
-                frames.append(data)
-            except Exception:
-                break
+    def _toggle_recording(self):
+        if not self.is_recording:
+            if self.model is None:
+                messagebox.showwarning("Attenzione", "Il modello non è ancora pronto.")
+                return
                 
-            current_samples = len(frames) * 1024
-            if current_samples >= samples_per_chunk:
-                self._save_chunk(frames)
-                frames = []
-                
-        if frames:
-            self._save_chunk(frames)
+            self.is_recording = True
+            self.start_btn.configure(text="■ Ferma Trascrizione")
+            self._set_btn_state(self.start_btn, "normal", "danger")
+            self._set_btn_state(self.save_btn, "disabled", "info")
+            self.model_combo.configure(state="disabled")
+            self.device_combo.configure(state="disabled")
+            self._set_btn_state(self.delete_btn, "disabled", "danger")
+            self._set_btn_state(self.update_btn, "disabled", "secondary")
+            self.text_area.configure(state="disabled")
+            self._set_status("Registrazione in corso...")
             
-        try:
-            self.stream.stop_stream()
-            self.stream.close()
-        except Exception:
-            pass
-
-    def _save_chunk(self, frames):
-        try:
-            if not os.path.exists("/tmp"):
-                os.makedirs("/tmp")
-        except Exception:
-            pass
-            
-        try:
-            fd, wav_path = tempfile.mkstemp(suffix=".wav", dir="/tmp")
-            os.close(fd)
-            self.temp_files.add(wav_path)
-            
-            wf = wave.open(wav_path, 'wb')
-            wf.setnchannels(1)
-            wf.setsampwidth(self.pa.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(16000)
-            wf.writeframes(b''.join(frames))
-            wf.close()
-            
-            self.transcription_queue.put(wav_path)
-        except Exception as e:
-            self.root.after(0, self._set_status, f"Errore scrittura audio: {e}")
+            threading.Thread(target=self._recording_worker, daemon=True).start()
+        else:
+            self.start_btn.configure(text="▶ Avvia Trascrizione")
+            self._set_btn_state(self.start_btn, "disabled", "success")
+            self._stop_recording_action()
 
     def _on_recording_failed(self):
         self.is_recording = False
-        self._set_btn_state(self.start_btn, "normal", "primary")
-        self._set_btn_state(self.stop_btn, "disabled", "secondary")
+        self.start_btn.configure(text="▶ Avvia Trascrizione")
+        self._set_btn_state(self.start_btn, "normal", "success")
         self.model_combo.configure(state="normal")
         self.device_combo.configure(state="normal")
         self.text_area.configure(state="normal")
         self._update_action_buttons()
+        self._update_save_button_state()
         messagebox.showerror("Errore", "Impossibile avviare la registrazione audio. Verifica il microfono.")
-
-    def _stop_recording(self):
-        self._stop_recording_action()
 
     def _stop_recording_action(self):
         if not self.is_recording:
@@ -702,20 +655,22 @@ class WhisperApp:
         
         def wait_and_save():
             self.transcription_queue.join()
-            self.root.after(0, self._save_transcription)
+            self.root.after(0, self._on_transcription_finished)
             
         threading.Thread(target=wait_and_save, daemon=True).start()
+
+    def _on_transcription_finished(self):
+        self._set_btn_state(self.start_btn, "normal", "success")
+        self.model_combo.configure(state="normal")
+        self.device_combo.configure(state="normal")
+        self.text_area.configure(state="normal")
+        self._update_action_buttons()
+        self._update_save_button_state()
+        self._set_status("In attesa...")
 
     def _save_transcription(self):
         text_content = self.text_area.get("1.0", "end").strip()
         if not text_content:
-            self._set_status("Salvataggio annullato (testo vuoto)")
-            self._set_btn_state(self.start_btn, "normal", "primary")
-            self._set_btn_state(self.stop_btn, "disabled", "secondary")
-            self.model_combo.configure(state="normal")
-            self.device_combo.configure(state="normal")
-            self.text_area.configure(state="normal")
-            self._update_action_buttons()
             return
             
         filename = f"trascrizione_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -731,12 +686,7 @@ class WhisperApp:
             self._set_status(f"Errore di salvataggio: {e}")
             messagebox.showerror("Errore", f"Impossibile salvare il file: {e}")
             
-        self._set_btn_state(self.start_btn, "normal", "primary")
-        self._set_btn_state(self.stop_btn, "disabled", "secondary")
-        self.model_combo.configure(state="normal")
-        self.device_combo.configure(state="normal")
-        self.text_area.configure(state="normal")
-        self._update_action_buttons()
+        self._update_save_button_state()
 
     def _transcription_worker(self):
         while True:
@@ -766,6 +716,7 @@ class WhisperApp:
         self.text_area.insert("end", text + " ")
         self.text_area.see("end")
         self.text_area.configure(state="disabled")
+        self._update_save_button_state()
 
     def _on_closing(self):
         self.is_recording = False
