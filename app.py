@@ -905,22 +905,32 @@ class WhisperApp:
     def _format_text(self, text, is_final):
         if not text:
             return ""
-        if self.model_combo.get().startswith("Whisper "):
-            return text
-        text = " ".join(text.split())
-        words = text.split()
-        if words:
-            words[0] = words[0].capitalize()
-            text = " ".join(words)
+        if not self.model_combo.get().startswith("Whisper "):
+            text = " ".join(text.split())
+            words = text.split()
+            if words:
+                words[0] = words[0].capitalize()
+                text = " ".join(words)
         if is_final:
-            if text[-1] in {".", "?", "!"}:
+            if text[-1] in {"?", "!"}:
                 return text
-            words_lower = text.lower().split()
-            question_words = {"chi", "che", "cosa", "come", "dove", "quando", "perché", "perche", "quale", "quanto", "è", "hai", "sono", "who", "what", "where", "when", "why", "how", "is", "are", "do", "does", "did", "can", "could", "would", "should"}
-            if words_lower and (words_lower[0] in question_words or (len(words_lower) > 1 and words_lower[1] in question_words)):
-                text += "?"
-            else:
-                text += "."
+            clean_text = text[:-1].strip() if text[-1] == "." else text
+            question_indicators = {
+                "chi", "che", "cosa", "come", "dove", "quando", "perché", "perche", "quale", "quanto", "quanti", "quante", 
+                "puoi", "riesci", "vuoi", "sai", "hai", "è", "sono", "potresti", "sapresti", "dovresti",
+                "per caso", "percaso", "vero", "giusto", "capisci", "senti", "who", "what", "where", "when", "why", "how",
+                "is", "are", "do", "does", "did", "can", "could", "would", "should"
+            }
+            is_question = False
+            text_lower = clean_text.lower()
+            for indicator in question_indicators:
+                if f" {indicator} " in f" {text_lower} " or text_lower.startswith(indicator) or text_lower.endswith(indicator):
+                    is_question = True
+                    break
+            if is_question:
+                text = clean_text + "?"
+            elif text[-1] not in {".", "?", "!"}:
+                text = text + "."
         return text
 
     def _update_transcription_text(self, text, is_final):
