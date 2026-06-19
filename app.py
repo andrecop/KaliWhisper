@@ -1041,6 +1041,51 @@ class WhisperApp:
             download_registry = {}
             self.status_canvas = None
             
+            def draw_rounded_rect(canvas, x1, y1, x2, y2, r, fill):
+                r = min(r, (x2 - x1) / 2, (y2 - y1) / 2)
+                if r <= 0:
+                    return canvas.create_rectangle(x1, y1, x2, y2, fill=fill, outline="")
+                points = [
+                    x1+r, y1, x1+r, y1,
+                    x2-r, y1, x2-r, y1,
+                    x2, y1, x2, y1+r, x2, y1+r,
+                    x2, y2-r, x2, y2-r,
+                    x2, y2, x2-r, y2, x2-r, y2,
+                    x1+r, y2, x1+r, y2,
+                    x1, y2, x1, y2-r, x1, y2-r,
+                    x1, y1+r, x1, y1+r,
+                    x1, y1
+                ]
+                return canvas.create_polygon(points, fill=fill, outline="", smooth=True)
+
+            def draw_progress(canvas, x1, y1, x2, y2, r, fill, w_max):
+                r = min(r, x2 - x1, (y2 - y1) / 2)
+                if r <= 0:
+                    return canvas.create_rectangle(x1, y1, x2, y2, fill=fill, outline="")
+                if x2 < w_max - r:
+                    points = [
+                        x1+r, y1, x1+r, y1,
+                        x2, y1, x2, y1, x2, y1,
+                        x2, y2, x2, y2, x2, y2,
+                        x1+r, y2, x1+r, y2,
+                        x1, y2, x1, y2-r, x1, y2-r,
+                        x1, y1+r, x1, y1+r,
+                        x1, y1
+                    ]
+                else:
+                    points = [
+                        x1+r, y1, x1+r, y1,
+                        x2-r, y1, x2-r, y1,
+                        x2, y1, x2, y1+r, x2, y1+r,
+                        x2, y2-r, x2, y2-r,
+                        x2, y2, x2-r, y2, x2-r, y2,
+                        x1+r, y2, x1+r, y2,
+                        x1, y2, x1, y2-r, x1, y2-r,
+                        x1, y1+r, x1, y1+r,
+                        x1, y1
+                    ]
+                return canvas.create_polygon(points, fill=fill, outline="", smooth=True)
+
             def progress_callback(action, val, desc):
                 if action == "init":
                     download_started[0] = True
@@ -1056,7 +1101,7 @@ class WhisperApp:
                                 self.draw_canvas_fn()
                             return
                         self.status_label.pack_forget()
-                        self.status_canvas = tk.Canvas(self.status_border, bg="#18181b", bd=0, highlightthickness=0, height=28)
+                        self.status_canvas = tk.Canvas(self.status_border, bg="#27272a", bd=0, highlightthickness=0, height=28)
                         self.status_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
                         
                         def draw_canvas(e=None):
@@ -1064,13 +1109,14 @@ class WhisperApp:
                                 return
                             w = self.status_canvas.winfo_width()
                             h = self.status_canvas.winfo_height()
-                            self.status_canvas.coords("progress", 0, 0, w * (self.status_pct / 100.0), h)
-                            self.status_canvas.coords("text", w / 2, h / 2)
-                            self.status_canvas.itemconfigure("text", text=self.status_text_str)
+                            self.status_canvas.delete("all")
+                            draw_rounded_rect(self.status_canvas, 0, 0, w, h, 7, fill="#18181b")
+                            if self.status_pct > 0:
+                                w_prog = w * (self.status_pct / 100.0)
+                                draw_progress(self.status_canvas, 0, 0, w_prog, h, 7, fill="#1e3a8a", w_max=w)
+                            self.status_canvas.create_text(w / 2, h / 2, text=self.status_text_str, fill="#ffffff", font=("Segoe UI", 9, "bold"), tags="text")
                             
                         self.status_canvas.bind("<Configure>", draw_canvas)
-                        self.status_canvas.create_rectangle(0, 0, 0, 28, fill="#1e3a8a", outline="", tags="progress")
-                        self.status_canvas.create_text(0, 0, text=self.status_text_str, fill="#ffffff", font=("Segoe UI", 9, "bold"), tags="text")
                         self.draw_canvas_fn = draw_canvas
                         draw_canvas()
                         if self.status_canvas:
