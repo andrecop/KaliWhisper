@@ -1036,19 +1036,24 @@ class WhisperApp:
         def load_task():
             download_started = [False]
             last_pct = [-1]
+            active_downloads = [0]
             self.status_canvas = None
             
             def progress_callback(action, val, desc):
                 if action == "init":
                     download_started[0] = True
+                    active_downloads[0] += 1
                     last_pct[0] = 0
                     def on_init():
+                        self.status_pct = 0
+                        self.status_text_str = f"Download del modello {engine_name} in corso... 0%"
+                        if self.status_canvas:
+                            if hasattr(self, "draw_canvas_fn"):
+                                self.draw_canvas_fn()
+                            return
                         self.status_label.pack_forget()
                         self.status_canvas = tk.Canvas(self.status_border, bg="#18181b", bd=0, highlightthickness=0, height=28)
                         self.status_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
-                        
-                        self.status_pct = 0
-                        self.status_text_str = f"Download del modello {engine_name} in corso... 0%"
                         
                         def draw_canvas(e=None):
                             if not self.status_canvas:
@@ -1082,14 +1087,16 @@ class WhisperApp:
                                 self.draw_canvas_fn()
                         self.root.after(0, on_update)
                 elif action == "close":
-                    def on_close():
-                        if self.status_canvas:
-                            self.status_canvas.pack_forget()
-                            self.status_canvas.destroy()
-                            self.status_canvas = None
-                        self.status_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
-                        self.status_label.configure(fg_color="#18181b", text_color="#a1a1aa")
-                    self.root.after(0, on_close)
+                    active_downloads[0] -= 1
+                    if active_downloads[0] <= 0:
+                        def on_close():
+                            if self.status_canvas:
+                                self.status_canvas.pack_forget()
+                                self.status_canvas.destroy()
+                                self.status_canvas = None
+                            self.status_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
+                            self.status_label.configure(fg_color="#18181b", text_color="#a1a1aa")
+                        self.root.after(0, on_close)
 
             TkinterTqdm.callback = progress_callback
             try:
