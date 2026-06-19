@@ -430,11 +430,10 @@ class FlagDropdown(ctk.CTkToplevel):
         if not (win_x <= x <= win_x + win_w and win_y <= y <= win_y + win_h):
             self.close()
             
-    def open(self, btn, on_select):
-        self._on_select = on_select
-        self.search_var.set("")
-        self._populate_list()
-        
+    def reposition(self):
+        if not getattr(self, "_trigger_btn", None):
+            return
+        btn = self._trigger_btn
         x = btn.winfo_rootx()
         btn_y = btn.winfo_rooty()
         btn_h = btn.winfo_height()
@@ -442,13 +441,20 @@ class FlagDropdown(ctk.CTkToplevel):
         screen_height = self.winfo_screenheight()
         dropdown_height = 300
         
-        # If the dropdown overflows the screen bottom, open it upwards
         if btn_y + btn_h + 2 + dropdown_height > screen_height - 40:
             y = btn_y - dropdown_height - 2
         else:
             y = btn_y + btn_h + 2
             
         self.geometry(f"250x{dropdown_height}+{int(x)}+{int(y)}")
+
+    def open(self, btn, on_select):
+        self._on_select = on_select
+        self._trigger_btn = btn
+        self.search_var.set("")
+        self._populate_list()
+        
+        self.reposition()
         self.deiconify()
         self.update()
         self.update_idletasks()
@@ -456,11 +462,20 @@ class FlagDropdown(ctk.CTkToplevel):
         self.search_entry.focus()
         self.grab_set()
         
+        self._configure_bind_id = self.master.bind("<Configure>", lambda e: self.reposition(), add="+")
+        
     def close(self):
         try:
             self.grab_release()
         except Exception:
             pass
+        if getattr(self, "_configure_bind_id", None):
+            try:
+                self.master.unbind("<Configure>", self._configure_bind_id)
+            except Exception:
+                pass
+            self._configure_bind_id = None
+        self._trigger_btn = None
         self.withdraw()
 
 import customtkinter.windows.widgets.ctk_optionmenu as optmenu
