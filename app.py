@@ -1139,11 +1139,17 @@ class WhisperApp:
             try:
                 raw_audio = b"".join(self.all_recorded_audio)
                 total_bytes = len(raw_audio)
-                full_text = self.text_area.get("1.0", "end").strip()
-                import re
+                lines = self.text_area.get("1.0", "end-1c").split("\n")
                 words_ranges = []
-                for m in re.finditer(r'\S+', full_text):
-                    words_ranges.append((f"1.0 + {m.start()}c", f"1.0 + {m.end()}c"))
+                current_char_offset = 0
+                for line in lines:
+                    if not line.strip().startswith("-------"):
+                        import re
+                        for m in re.finditer(r'\S+', line):
+                            start = current_char_offset + m.start()
+                            end = current_char_offset + m.end()
+                            words_ranges.append((f"1.0 + {start}c", f"1.0 + {end}c"))
+                    current_char_offset += len(line) + 1
                 words_count = len(words_ranges)
                 if words_count == 0:
                     return
