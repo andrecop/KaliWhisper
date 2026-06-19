@@ -303,13 +303,13 @@ class FlagDropdown(ctk.CTkToplevel):
         {"name": "Afrikaans (Afrikaans)", "code": "af", "flag": "ZA", "wer": "> 60%"}
     ]
 
-    def __init__(self, master, get_flag_image_fn, on_select):
+    def __init__(self, master, get_flag_image_fn):
         super().__init__(master)
         self.withdraw()
         self.overrideredirect(True)
         self.configure(fg_color="#09090b")
         self._get_flag_image = get_flag_image_fn
-        self._on_select = on_select
+        self._on_select = None
         
         self.border_frame = ctk.CTkFrame(
             self, fg_color="#18181b", border_color="#27272a", border_width=1, corner_radius=8
@@ -326,10 +326,29 @@ class FlagDropdown(ctk.CTkToplevel):
         )
         self.search_entry.pack(fill=tk.X, padx=6, pady=(6, 2))
         
-        self.scroll_frame = ctk.CTkScrollableFrame(
-            self.border_frame, fg_color="transparent", width=220, height=250
-        )
-        self.scroll_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=(2, 6))
+        self.canvas = tk.Canvas(self.border_frame, bg="#18181b", highlightthickness=0)
+        self.scrollbar = tk.Scrollbar(self.border_frame, orient="vertical", command=self.canvas.yview)
+        self.scroll_content = tk.Frame(self.canvas, bg="#18181b")
+        
+        self.canvas.create_window((0, 0), window=self.scroll_content, anchor="nw", tags="self.scroll_content")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0), pady=(2, 6))
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 4), pady=(2, 6))
+        
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            
+        self.canvas.bind("<MouseWheel>", _on_mousewheel)
+        self.scroll_content.bind("<MouseWheel>", _on_mousewheel)
+        
+        def configure_scroll(e):
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            canvas_width = self.canvas.winfo_width()
+            self.canvas.itemconfig("self.scroll_content", width=canvas_width)
+            
+        self.scroll_content.bind("<Configure>", configure_scroll)
+        self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfig("self.scroll_content", width=e.width))
         
         self.rows = []
         for lang in self.LANGUAGES:
@@ -340,22 +359,50 @@ class FlagDropdown(ctk.CTkToplevel):
             
             img = self._get_flag_image(flag)
             
-            btn_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+            btn_frame = tk.Frame(self.scroll_content, bg="#18181b", height=28)
             btn_frame.pack(fill=tk.X, pady=1)
+            btn_frame.pack_propagate(False)
             
-            btn = ctk.CTkButton(
-                btn_frame, text=f" {name}", image=img, compound="left", anchor="w",
-                fg_color="transparent", text_color="#fafafa",
-                hover_color="#27272a", font=("Segoe UI", 11),
-                height=28, corner_radius=6,
-                command=lambda c=code: [self._on_select(c), self.close()]
-            )
-            btn.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            def on_enter(e, f=btn_frame):
+                f.configure(bg="#27272a")
+                for child in f.winfo_children():
+                    child.configure(bg="#27272a")
+                
+            def on_leave(e, f=btn_frame):
+                f.configure(bg="#18181b")
+                for child in f.winfo_children():
+                    child.configure(bg="#18181b")
+                
+            def on_click(e, c=code):
+                if self._on_select:
+                    self._on_select(c)
+                self.close()
+                
+            btn_frame.bind("<Enter>", on_enter)
+            btn_frame.bind("<Leave>", on_leave)
+            btn_frame.bind("<Button-1>", on_click)
+            btn_frame.bind("<MouseWheel>", _on_mousewheel)
             
-            wer_lbl = ctk.CTkLabel(
-                btn_frame, text=wer, font=("Segoe UI", 10, "bold"), text_color="#a1a1aa", width=45, anchor="e"
-            )
-            wer_lbl.pack(side=tk.RIGHT, padx=(5, 5))
+            flag_lbl = tk.Label(btn_frame, image=img, bg="#18181b", bd=0, highlightthickness=0)
+            flag_lbl.pack(side=tk.LEFT, padx=(6, 4))
+            flag_lbl.bind("<Enter>", on_enter)
+            flag_lbl.bind("<Leave>", on_leave)
+            flag_lbl.bind("<Button-1>", on_click)
+            flag_lbl.bind("<MouseWheel>", _on_mousewheel)
+            
+            name_lbl = tk.Label(btn_frame, text=name, bg="#18181b", fg="#fafafa", font=("Segoe UI", 11), bd=0, highlightthickness=0, anchor="w")
+            name_lbl.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+            name_lbl.bind("<Enter>", on_enter)
+            name_lbl.bind("<Leave>", on_leave)
+            name_lbl.bind("<Button-1>", on_click)
+            name_lbl.bind("<MouseWheel>", _on_mousewheel)
+            
+            wer_lbl = tk.Label(btn_frame, text=wer, bg="#18181b", fg="#a1a1aa", font=("Segoe UI", 10, "bold"), bd=0, highlightthickness=0, anchor="e")
+            wer_lbl.pack(side=tk.RIGHT, padx=(0, 8))
+            wer_lbl.bind("<Enter>", on_enter)
+            wer_lbl.bind("<Leave>", on_leave)
+            wer_lbl.bind("<Button-1>", on_click)
+            wer_lbl.bind("<MouseWheel>", _on_mousewheel)
             
             self.rows.append({
                 "frame": btn_frame,
@@ -383,10 +430,13 @@ class FlagDropdown(ctk.CTkToplevel):
         if not (win_x <= x <= win_x + win_w and win_y <= y <= win_y + win_h):
             self.close()
             
-    def open(self, x, y):
+    def open(self, x, y, on_select):
+        self._on_select = on_select
         self.search_var.set("")
+        self._populate_list()
         self.geometry(f"250x300+{int(x)}+{int(y)}")
         self.deiconify()
+        self.update()
         self.update_idletasks()
         self.lift()
         self.focus_force()
@@ -519,7 +569,7 @@ class WhisperApp:
         self.target_lang = "it"
         self.ui_lang = "it"
         
-        from PIL import Image
+        from PIL import Image, ImageTk
         from svglib.svglib import svg2rlg
         from reportlab.graphics import renderPM
         import io
@@ -562,10 +612,30 @@ class WhisperApp:
         self.img_it = self.get_flag_image("IT")
         self.img_en = self.get_flag_image("GB")
         
-        # Pre-load all flags synchronously at startup
+        self.flag_photo_cache = {}
+        def get_flag_photo_image_fn(flag_code):
+            flag_code = flag_code.upper()
+            if flag_code not in self.flag_photo_cache:
+                try:
+                    svg_path = os.path.join(flags_dir, f"{flag_code}.svg")
+                    if not os.path.exists(svg_path):
+                        svg_path = os.path.join(flags_dir, "XX.svg")
+                    self.flag_photo_cache[flag_code] = ImageTk.PhotoImage(load_svg_as_image(svg_path, (24, 16)))
+                except Exception:
+                    try:
+                        self.flag_photo_cache[flag_code] = ImageTk.PhotoImage(
+                            load_svg_as_image(os.path.join(flags_dir, "XX.svg"), (24, 16))
+                        )
+                    except Exception:
+                        self.flag_photo_cache[flag_code] = None
+            return self.flag_photo_cache[flag_code]
+            
+        self.get_flag_photo_image = get_flag_photo_image_fn
+        
+        # Pre-load all flags synchronously as PhotoImage at startup
         for lang in FlagDropdown.LANGUAGES:
             try:
-                self.get_flag_image(lang["flag"])
+                self.get_flag_photo_image(lang["flag"])
             except Exception:
                 pass
         self._init_dropdowns()
@@ -1255,15 +1325,13 @@ class WhisperApp:
     def _init_dropdowns(self):
         if hasattr(self, "lang_dropdown"):
             return
-        self.lang_dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_language_selected)
-        self.target_lang_dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_target_language_selected)
-        self.ui_lang_dropdown = FlagDropdown(self.root, self.get_flag_image, self._on_ui_language_selected)
+        self.lang_dropdown = FlagDropdown(self.root, self.get_flag_photo_image)
 
     def _show_flag_dropdown(self):
         self._init_dropdowns()
         x = self.lang_btn.winfo_rootx()
         y = self.lang_btn.winfo_rooty() + self.lang_btn.winfo_height() + 2
-        self.lang_dropdown.open(x, y)
+        self.lang_dropdown.open(x, y, self._on_language_selected)
 
     def _on_language_selected(self, selected_lang):
         self.transcribe_lang = selected_lang
@@ -1329,7 +1397,7 @@ class WhisperApp:
         self._init_dropdowns()
         x = self.target_lang_btn.winfo_rootx()
         y = self.target_lang_btn.winfo_rooty() + self.target_lang_btn.winfo_height() + 2
-        self.target_lang_dropdown.open(x, y)
+        self.lang_dropdown.open(x, y, self._on_target_language_selected)
 
     def _on_target_language_selected(self, selected_lang):
         old_lang = self.target_lang
@@ -1381,7 +1449,7 @@ class WhisperApp:
         self._init_dropdowns()
         x = self.ui_lang_btn.winfo_rootx()
         y = self.ui_lang_btn.winfo_rooty() + self.ui_lang_btn.winfo_height() + 2
-        self.ui_lang_dropdown.open(x, y)
+        self.lang_dropdown.open(x, y, self._on_ui_language_selected)
 
     def _on_ui_language_selected(self, selected_lang):
         self._update_ui_language(selected_lang)
