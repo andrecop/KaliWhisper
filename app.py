@@ -144,12 +144,17 @@ class ToolTip:
     def set_language(self, lang):
         self.lang = lang
 
+    def update_text(self, text_dict):
+        self.text_dict = text_dict
+
     def show_tip(self, event=None):
         if self.tip_window or not self.text_dict:
             return
         
-        text = self.text_dict.get(self.lang, self.text_dict.get("en", "Word Error Rate"))
-        
+        content = self.text_dict.get(self.lang, self.text_dict.get("en", ""))
+        if not content:
+            return
+            
         x = self.widget.winfo_rootx() + 20
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
         
@@ -162,13 +167,33 @@ class ToolTip:
         border = tk.Frame(tw, bg="#27272a", bd=1)
         border.pack(fill=tk.BOTH, expand=True)
         
-        label = tk.Label(
-            border, text=text, justify=tk.LEFT,
-            bg="#18181b", fg="#fafafa",
-            font=("Segoe UI", 9, "bold"),
-            padx=8, pady=4
-        )
-        label.pack(padx=1, pady=1)
+        container = tk.Frame(border, bg="#18181b", padx=10, pady=8)
+        container.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        
+        if isinstance(content, dict):
+            title = content.get("title", "")
+            desc = content.get("desc", "")
+            
+            title_lbl = tk.Label(
+                container, text=title, justify=tk.LEFT,
+                bg="#18181b", fg="#fafafa",
+                font=("Segoe UI", 10, "bold")
+            )
+            title_lbl.pack(anchor="w")
+            
+            desc_lbl = tk.Label(
+                container, text=desc, justify=tk.LEFT,
+                bg="#18181b", fg="#a1a1aa",
+                font=("Segoe UI", 9), wraplength=300
+            )
+            desc_lbl.pack(anchor="w", pady=(4, 0))
+        else:
+            label = tk.Label(
+                container, text=content, justify=tk.LEFT,
+                bg="#18181b", fg="#fafafa",
+                font=("Segoe UI", 9, "bold")
+            )
+            label.pack()
 
     def hide_tip(self, event=None):
         tw = self.tip_window
@@ -708,9 +733,16 @@ class WhisperApp:
         self.wer_label.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(0, 1), pady=1)
         
         self.wer_tooltip = ToolTip(self.wer_label, {
-            "it": "Tasso di errore sulle parole (Word Error Rate)",
-            "en": "Word Error Rate"
+            "it": {
+                "title": "Affidabile (Reliable)",
+                "desc": "La trascrizione è quasi perfetta. Le uniche correzioni necessarie riguardano tipicamente nomi propri, acronimi o punteggiatura complessa. Il testo è pronto all'uso con uno sforzo minimo."
+            },
+            "en": {
+                "title": "Reliable",
+                "desc": "The transcription is nearly perfect. Only minor corrections are needed for proper names, acronyms, or complex punctuation. Ready to use with minimal effort."
+            }
         })
+        self.wer_label.configure(text_color="#10B981")
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
@@ -1222,6 +1254,46 @@ class WhisperApp:
         # Display WER on status bar label
         wer = lang_item["wer"] if lang_item else "---%"
         self.wer_label.configure(text=f"WER {wer}")
+        
+        # Color-code and populate descriptive hover tooltip based on WER value
+        wer_val = None
+        try:
+            val_str = wer.replace("%", "").replace(">", "").replace("~", "").strip()
+            wer_val = float(val_str)
+        except Exception:
+            pass
+            
+        if wer_val is not None:
+            if wer_val < 10.0:
+                color = "#10B981" # Emerald
+                title_it, title_en = "Affidabile", "Reliable"
+                desc_it = "La trascrizione è quasi perfetta. Le uniche correzioni necessarie riguardano tipicamente nomi propri, acronimi o punteggiatura complessa. Il testo è pronto all'uso con uno sforzo minimo."
+                desc_en = "The transcription is nearly perfect. Only minor corrections are needed for proper names, acronyms, or complex punctuation. Ready to use with minimal effort."
+            elif 10.0 <= wer_val <= 20.0:
+                color = "#F59E0B" # Amber
+                title_it, title_en = "Accettabile", "Acceptable"
+                desc_it = "Il testo è pienamente comprensibile, ma la revisione manuale diventa un requisito obbligatorio. Il modello confonde alcuni fonemi o sbaglia le concordanze."
+                desc_en = "The text is fully understandable, but manual proofreading is mandatory. The model confuses some phonemes or makes alignment errors."
+            elif 20.0 < wer_val <= 40.0:
+                color = "#F97316" # Orange
+                title_it, title_en = "Scarso", "Poor"
+                desc_it = "La qualità degrada parecchio. La trascrizione letterale richiederà una riscrittura massiccia, ma è ancora sufficiente se lo scopo è estrarre il senso generale dell'audio o fare ricerca per parole chiave."
+                desc_en = "Quality degrades significantly. Literal transcription requires heavy rewriting, but is still sufficient to grasp the general meaning or perform keyword search."
+            else:
+                color = "#EF4444" # Red
+                title_it, title_en = "Sperimentale", "Experimental"
+                desc_it = "In questa fascia il modello è inutilizzabile per compiti pratici. Tende ad 'allucinare' intere frasi, ripetere loop di parole o saltare completamente l'audio."
+                desc_en = "The model is unusable for practical tasks in this range. It tends to hallucinate entire phrases, loop words, or completely skip parts of the audio."
+        else:
+            color = "#a1a1aa"
+            title_it, title_en = "Sconosciuto", "Unknown"
+            desc_it, desc_en = "Tasso di errore sulle parole non disponibile.", "Word Error Rate not available."
+            
+        self.wer_label.configure(text_color=color)
+        self.wer_tooltip.update_text({
+            "it": {"title": f"{title_it} ({title_en})", "desc": desc_it},
+            "en": {"title": title_en, "desc": desc_en}
+        })
         
         if selected_lang == "en":
             self._set_status("Lingua: Inglese")
