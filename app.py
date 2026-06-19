@@ -738,11 +738,11 @@ class WhisperApp:
         self.reset_btn = ctk.CTkButton(button_frame, text="🗑 Reset", command=self._reset_transcription, font=("Segoe UI", 11, "bold"), height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
         self.reset_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
-        self.play_btn = ctk.CTkButton(button_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), width=250, height=38)
-        self.play_btn.pack(side=tk.LEFT, padx=(5, 5))
+        self.play_btn = ctk.CTkButton(button_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), height=38)
+        self.play_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
 
-        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), width=250, height=38)
-        self.start_btn.pack(side=tk.LEFT, padx=(5, 0))
+        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
+        self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
 
@@ -755,11 +755,11 @@ class WhisperApp:
         self.ui_lang_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         self._set_btn_state(self.ui_lang_btn, "normal", "secondary")
 
-        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), width=250, height=38)
-        self.save_audio_btn.pack(side=tk.LEFT, padx=(5, 5))
+        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_audio_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
 
-        self.save_btn = ctk.CTkButton(self.bottom_btn_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), width=250, height=38)
-        self.save_btn.pack(side=tk.LEFT, padx=(5, 0))
+        self.save_btn = ctk.CTkButton(self.bottom_btn_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
+        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         
         self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
@@ -776,7 +776,6 @@ class WhisperApp:
             text="💾 Salva tutto e Chiudi al termine", 
             command=self._save_all_and_close_on_finish, 
             font=("Segoe UI", 11, "bold"), 
-            width=510,
             height=38, 
             fg_color="#18181b", 
             border_color="#27272a", 
@@ -784,7 +783,7 @@ class WhisperApp:
             text_color="#fafafa",
             hover_color="#27272a"
         )
-        self.save_and_close_btn.pack(side=tk.LEFT, padx=(5, 0))
+        self.save_and_close_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
 
         self._set_btn_state(self.start_btn, "disabled", "success")
         self._set_btn_state(self.save_btn, "disabled", "info")
