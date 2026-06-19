@@ -333,8 +333,8 @@ class FlagDropdown(ctk.CTkToplevel):
         self.canvas.create_window((0, 0), window=self.scroll_content, anchor="nw", tags="self.scroll_content")
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0), pady=(2, 6))
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 4), pady=(2, 6))
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0), pady=(2, 6))
         
         def _on_mousewheel(event):
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
