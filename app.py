@@ -327,7 +327,7 @@ class FlagDropdown(ctk.CTkToplevel):
         self.search_entry.pack(fill=tk.X, padx=6, pady=(6, 2))
         
         self.canvas = tk.Canvas(self.border_frame, bg="#18181b", highlightthickness=0)
-        self.scrollbar = tk.Scrollbar(self.border_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollbar = ctk.CTkScrollbar(self.border_frame, orientation="vertical", command=self.canvas.yview)
         self.scroll_content = tk.Frame(self.canvas, bg="#18181b")
         
         self.canvas.create_window((0, 0), window=self.scroll_content, anchor="nw", tags="self.scroll_content")
