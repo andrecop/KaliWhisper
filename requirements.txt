@@ -6,4 +6,6 @@ huggingface_hub
 tqdm
 svglib
 reportlab
+rlPyCairo
+pycairo
 Pillow
