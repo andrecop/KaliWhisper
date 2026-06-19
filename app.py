@@ -132,6 +132,50 @@ class ShadcnDropdown(ctk.CTkToplevel):
             return self._font
         return None
 
+class ToolTip:
+    def __init__(self, widget, text_dict):
+        self.widget = widget
+        self.text_dict = text_dict
+        self.tip_window = None
+        self.lang = "it"
+        self.widget.bind("<Enter>", self.show_tip)
+        self.widget.bind("<Leave>", self.hide_tip)
+
+    def set_language(self, lang):
+        self.lang = lang
+
+    def show_tip(self, event=None):
+        if self.tip_window or not self.text_dict:
+            return
+        
+        text = self.text_dict.get(self.lang, self.text_dict.get("en", "Word Error Rate"))
+        
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 5
+        
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        tw.configure(bg="#18181b")
+        
+        # Border frame to match shadcn style
+        border = tk.Frame(tw, bg="#27272a", bd=1)
+        border.pack(fill=tk.BOTH, expand=True)
+        
+        label = tk.Label(
+            border, text=text, justify=tk.LEFT,
+            bg="#18181b", fg="#fafafa",
+            font=("Segoe UI", 9, "bold"),
+            padx=8, pady=4
+        )
+        label.pack(padx=1, pady=1)
+
+    def hide_tip(self, event=None):
+        tw = self.tip_window
+        self.tip_window = None
+        if tw:
+            tw.destroy()
+
 class FlagDropdown(ctk.CTkToplevel):
     LANGUAGES = [
         {"name": "Spagnolo (Spanish)", "code": "es", "flag": "ES", "wer": "3.4%"},
@@ -662,6 +706,11 @@ class WhisperApp:
             text_color="#ef4444", fg_color="#18181b", corner_radius=7, width=80
         )
         self.wer_label.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(0, 1), pady=1)
+        
+        self.wer_tooltip = ToolTip(self.wer_label, {
+            "it": "Tasso di errore sulle parole (Word Error Rate)",
+            "en": "Word Error Rate"
+        })
         
         self.progress_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.progress_bar = ctk.CTkProgressBar(self.progress_frame, progress_color="#ffffff", fg_color="#27272a")
@@ -1247,6 +1296,8 @@ class WhisperApp:
         lang_item = next((l for l in FlagDropdown.LANGUAGES if l["code"] == lang_code), None)
         flag_code = lang_item["flag"] if lang_item else lang_code.upper()
         self.ui_lang_btn.configure(image=self.get_flag_image(flag_code))
+        if hasattr(self, "wer_tooltip"):
+            self.wer_tooltip.set_language(lang_code)
         if lang_code == "en":
             self.model_label.configure(text="Transcription Engine:")
             self.dest_btn.configure(text="📂 Destination")
