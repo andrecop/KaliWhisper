@@ -252,7 +252,7 @@ class WhisperApp:
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=self._delete_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=self._update_selected_model, font=("Segoe UI", 10, "bold"), width=90)
         
-        self.lang_btn = ctk.CTkButton(self.model_frame, text="🇮🇹", command=self._toggle_language, font=("Segoe UI", 12), width=40)
+        self.lang_btn = ctk.CTkButton(self.model_frame, text="🇮🇹", command=self._toggle_language, font=("Segoe UI", 16), width=46)
         self.lang_btn.pack(side=tk.RIGHT, padx=2)
         self._set_btn_state(self.lang_btn, "normal", "secondary")
 
