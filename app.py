@@ -439,28 +439,30 @@ class WhisperApp:
         button_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         button_frame.pack(fill=tk.X)
         
-        self.visualizer = tk.Canvas(button_frame, width=38, height=38, bg="#09090b", highlightthickness=0)
-        self.visualizer.pack(side=tk.LEFT, padx=(0, 5))
+        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), width=210, height=38)
+        self.start_btn.pack(side=tk.LEFT, padx=(0, 5))
         
-        self.start_btn = ctk.CTkButton(button_frame, text="▶ Avvia Trascrizione", command=self._toggle_recording, font=("Segoe UI", 11, "bold"), height=38)
-        self.start_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.save_btn = ctk.CTkButton(button_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), width=210, height=38)
+        self.save_btn.pack(side=tk.LEFT, padx=(5, 5))
         
-        self.save_btn = ctk.CTkButton(button_frame, text="💾 Salva Trascrizione", command=self._save_transcription, font=("Segoe UI", 11, "bold"), height=38)
-        self.save_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 5))
+        self.reset_btn = ctk.CTkButton(button_frame, text="🗑 Reset", command=self._reset_transcription, font=("Segoe UI", 11, "bold"), height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
+        self.reset_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
         
-        self.reset_btn = ctk.CTkButton(button_frame, text="🗑", command=self._reset_transcription, font=("Segoe UI", 13), width=38, height=38, fg_color="#ef4444", hover_color="#dc2626", text_color="#ffffff")
-        self.reset_btn.pack(side=tk.LEFT, padx=(5, 0))
-        
-        self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        self.bottom_btn_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         self.bottom_btn_frame.pack(fill=tk.X, pady=(10, 0))
-        self.bottom_btn_frame.columnconfigure(0, weight=2)
-        self.bottom_btn_frame.columnconfigure(1, weight=1)
         
-        self.play_btn = ctk.CTkButton(self.bottom_btn_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), height=38)
-        self.play_btn.grid(row=0, column=0, sticky="ew", padx=(0, 2))
+        self.play_btn = ctk.CTkButton(self.bottom_btn_frame, text="🔊 Ascolta Trascrizione", command=self._toggle_playback, font=("Segoe UI", 11, "bold"), width=210, height=38)
+        self.play_btn.pack(side=tk.LEFT, padx=(0, 5))
         
-        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), height=38)
-        self.save_audio_btn.grid(row=0, column=1, sticky="ew", padx=(2, 0))
+        self.save_audio_btn = ctk.CTkButton(self.bottom_btn_frame, text="🎙️ Salva Audio", command=self._save_audio, font=("Segoe UI", 11, "bold"), width=210, height=38)
+        self.save_audio_btn.pack(side=tk.LEFT, padx=(5, 5))
+        
+        self.visualizer_container = ctk.CTkFrame(self.bottom_btn_frame, fg_color="#18181b", height=38, border_color="#27272a", border_width=1)
+        self.visualizer_container.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
+        self.visualizer_container.pack_propagate(False)
+        
+        self.visualizer = tk.Canvas(self.visualizer_container, height=36, bg="#18181b", highlightthickness=0)
+        self.visualizer.pack(fill=tk.BOTH, expand=True, padx=2, pady=1)
         
         self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
@@ -758,13 +760,17 @@ class WhisperApp:
         normalized = min(1.0, rms / 3000.0)
         bar_width = 4
         gap = 3
-        start_x = 7
+        try:
+            canvas_width = max(38, self.visualizer.winfo_width())
+        except Exception:
+            canvas_width = 38
+        start_x = (canvas_width - 25) // 2
         for i in range(4):
             factor = (0.5 + 0.5 * math.sin(i * 1.5)) if rms > 10 else 0.05
-            h = int(3 + 30 * normalized * factor)
-            h = max(3, min(30, h))
-            y0 = 34 - h
-            y1 = 34
+            h = int(3 + 24 * normalized * factor)
+            h = max(3, min(24, h))
+            y0 = 27 - h
+            y1 = 27
             x0 = start_x + i * (bar_width + gap)
             x1 = x0 + bar_width
             color = "#ef4444" if rms < threshold else "#22c55e"
