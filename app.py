@@ -874,24 +874,21 @@ class WhisperApp:
         status_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         status_frame.pack(fill=tk.X, pady=(0, 15))
         
-        status_border = ctk.CTkFrame(status_frame, fg_color="#27272a", corner_radius=8, height=30)
-        status_border.pack(fill=tk.X, expand=True)
-        status_border.pack_propagate(False)
-
-        self.status_fill = ctk.CTkFrame(status_border, fg_color="#1e3a8a", corner_radius=7, height=28)
-        self.status_fill.place(x=1, y=1, relwidth=0.0, relheight=0.9)
+        self.status_border = ctk.CTkFrame(status_frame, fg_color="#27272a", corner_radius=8, height=30)
+        self.status_border.pack(fill=tk.X, expand=True)
+        self.status_border.pack_propagate(False)
 
         self.status_label = ctk.CTkLabel(
-            status_border, text="Inizializzazione...", font=("Segoe UI", 11, "bold"),
+            self.status_border, text="Inizializzazione...", font=("Segoe UI", 11, "bold"),
             text_color="#a1a1aa", fg_color="#18181b", corner_radius=7
         )
         self.status_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
 
-        status_divider = ctk.CTkFrame(status_border, fg_color="#27272a", width=1)
+        status_divider = ctk.CTkFrame(self.status_border, fg_color="#27272a", width=1)
         status_divider.pack(side=tk.LEFT, fill=tk.Y, pady=4)
 
         self.wer_label = ctk.CTkLabel(
-            status_border, text="WER 4.7%", font=("Segoe UI", 11, "bold"),
+            self.status_border, text="WER 4.7%", font=("Segoe UI", 11, "bold"),
             text_color="#ef4444", fg_color="#18181b", corner_radius=7, width=80
         )
         self.wer_label.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(0, 1), pady=1)
@@ -1038,31 +1035,59 @@ class WhisperApp:
         
         def load_task():
             download_started = [False]
+            last_pct = [-1]
+            self.status_canvas = None
+            
             def progress_callback(action, val, desc):
                 if action == "init":
                     download_started[0] = True
+                    last_pct[0] = 0
                     def on_init():
-                        self.status_label.configure(fg_color="transparent", text_color="#ffffff", text=f"Download del modello {engine_name} in corso... 0%")
-                        self.status_fill.place(relwidth=0.0)
-                        self.status_fill.lift()
-                        self.status_label.lift()
+                        self.status_label.pack_forget()
+                        self.status_canvas = tk.Canvas(self.status_border, bg="#18181b", bd=0, highlightthickness=0, height=28)
+                        self.status_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
+                        
+                        self.status_pct = 0
+                        self.status_text_str = f"Download del modello {engine_name} in corso... 0%"
+                        
+                        def draw_canvas(e=None):
+                            if not self.status_canvas:
+                                return
+                            w = self.status_canvas.winfo_width()
+                            h = self.status_canvas.winfo_height()
+                            self.status_canvas.coords("progress", 0, 0, w * (self.status_pct / 100.0), h)
+                            self.status_canvas.coords("text", w / 2, h / 2)
+                            self.status_canvas.itemconfigure("text", text=self.status_text_str)
+                            
+                        self.status_canvas.bind("<Configure>", draw_canvas)
+                        self.status_canvas.create_rectangle(0, 0, 0, 28, fill="#1e3a8a", outline="", tags="progress")
+                        self.status_canvas.create_text(0, 0, text=self.status_text_str, fill="#ffffff", font=("Segoe UI", 11, "bold"), tags="text")
+                        self.draw_canvas_fn = draw_canvas
+                        draw_canvas()
                     self.root.after(0, on_init)
                 elif action == "update" and download_started[0]:
                     total = getattr(val, "total", 0) or 0
                     n = getattr(val, "n_custom", 0)
                     if total > 0:
                         pct = min(100, max(0, int((n / total) * 100)))
+                        if pct == last_pct[0]:
+                            return
+                        last_pct[0] = pct
                         size_mb = total / (1024 * 1024)
                         curr_mb = n / (1024 * 1024)
                         def on_update(p=pct, c=curr_mb, s=size_mb):
-                            self.status_fill.place(relwidth=p/100.0)
-                            self.status_label.configure(text=f"Download del modello {engine_name} ({c:.1f}/{s:.1f} MB)... {p}%")
-                            self.status_fill.lift()
-                            self.status_label.lift()
+                            self.status_pct = p
+                            self.status_text_str = f"Download del modello {engine_name} ({c:.1f}/{s:.1f} MB)... {p}%"
+                            if hasattr(self, "draw_canvas_fn"):
+                                self.draw_canvas_fn()
                         self.root.after(0, on_update)
                 elif action == "close":
                     def on_close():
-                        self.status_fill.place(relwidth=0.0)
+                        if self.status_canvas:
+                            self.status_canvas.pack_forget()
+                            self.status_canvas.destroy()
+                            self.status_canvas = None
+                        self.status_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
                         self.status_label.configure(fg_color="#18181b", text_color="#a1a1aa")
                     self.root.after(0, on_close)
 
@@ -1084,7 +1109,11 @@ class WhisperApp:
             finally:
                 TkinterTqdm.callback = None
                 def cleanup():
-                    self.status_fill.place(relwidth=0.0)
+                    if self.status_canvas:
+                        self.status_canvas.pack_forget()
+                        self.status_canvas.destroy()
+                        self.status_canvas = None
+                    self.status_label.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(1, 0), pady=1)
                     self.status_label.configure(fg_color="#18181b", text_color="#a1a1aa")
                 self.root.after(0, cleanup)
                 
