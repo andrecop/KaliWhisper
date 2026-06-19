@@ -346,30 +346,28 @@ class WhisperApp:
             pass
 
         try:
-            all_devices_info = []
-            for h in range(self.pa.get_host_api_count()):
+            for i in range(self.pa.get_device_count()):
                 try:
-                    info = self.pa.get_host_api_info_by_index(h)
-                    numdevices = info.get('deviceCount', 0)
-                    for i in range(0, numdevices):
-                        device_info = self.pa.get_device_info_by_host_api_device_index(h, i)
-                        if device_info.get('maxInputChannels', 0) > 0:
-                            dev_info_copy = dict(device_info)
-                            dev_info_copy['name'] = _clean_string(device_info.get('name', ''))
-                            all_devices_info.append(dev_info_copy)
+                    device_info = self.pa.get_device_info_by_index(i)
+                    if device_info.get('maxInputChannels', 0) > 0:
+                        name = _clean_string(device_info.get('name', ''))
+                        if name not in device_names:
+                            try:
+                                test_stream = self.pa.open(
+                                    format=pyaudio.paInt16,
+                                    channels=int(device_info.get('maxInputChannels', 1)),
+                                    rate=int(device_info.get('defaultSampleRate', 16000)),
+                                    input=True,
+                                    input_device_index=i,
+                                    frames_per_buffer=256
+                                )
+                                test_stream.close()
+                            except Exception:
+                                continue
+                            self.devices.append((i, name))
+                            device_names.append(name)
                 except Exception:
                     pass
-
-            mme_info = self.pa.get_host_api_info_by_index(0)
-            mme_devices_count = mme_info.get('deviceCount', 0)
-            for i in range(0, mme_devices_count):
-                device_info = self.pa.get_device_info_by_host_api_device_index(0, i)
-                if device_info.get('maxInputChannels', 0) > 0:
-                    name = _clean_string(device_info.get('name', ''))
-                    if name not in device_names:
-                        global_idx = device_info.get('index', i)
-                        self.devices.append((global_idx, name))
-                        device_names.append(name)
         except Exception:
             pass
         if not device_names:
@@ -585,22 +583,23 @@ class WhisperApp:
                     stream = None
                 try:
                     try:
-                        device_info = self.pa.get_device_info_by_host_api_device_index(0, device_idx) if device_idx >= 0 else self.pa.get_default_input_device_info()
+                        device_info = self.pa.get_device_info_by_index(device_idx) if device_idx >= 0 else self.pa.get_default_input_device_info()
                     except Exception:
                         device_info = self.pa.get_default_input_device_info()
                     native_channels = int(device_info.get('maxInputChannels', 1))
                     native_rate = int(device_info.get('defaultSampleRate', 16000))
-                    chunk_size = int(native_rate * 0.1) # 100ms
+                    chunk_size = int(native_rate * 0.1)
                     
                     stream = self.pa.open(
                         format=format_type,
-                        channels=1,
+                        channels=native_channels,
                         rate=native_rate,
                         input=True,
                         input_device_index=device_idx if device_idx >= 0 else None,
                         frames_per_buffer=chunk_size
                     )
                     current_device = device_idx
+                    print(f"TRACER: Opened device {device_idx} ({device_info.get('name')}) | channels: {native_channels} | rate: {native_rate} | chunk_size: {chunk_size}", flush=True)
                 except Exception as e:
                     print(f"TRACER: Monitor failed to open stream: {e}", flush=True)
                     import time
@@ -614,7 +613,11 @@ class WhisperApp:
                 data = stream.read(chunk_size, exception_on_overflow=False)
                 import numpy as np
                 audio_data = np.frombuffer(data, dtype=np.int16)
-                mono_data = audio_data.astype(np.float64)
+                if native_channels > 1:
+                    audio_data = audio_data.reshape(-1, native_channels)
+                    mono_data = audio_data[:, 0].astype(np.float64)
+                else:
+                    mono_data = audio_data.astype(np.float64)
                 mono_data -= np.mean(mono_data)
                 mono_data = np.clip(mono_data * 3.0, -32768, 32767).astype(np.int16)
                 
