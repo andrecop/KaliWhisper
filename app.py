@@ -396,30 +396,30 @@ class WhisperApp:
         
         
 
-        self.target_lang_btn = ctk.CTkButton(
-            self.model_frame, text=" ▾", image=self.img_it, compound="left",
-            command=self._show_target_flag_dropdown, width=64, height=30,
-            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
-            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
-        )
-        self.target_lang_btn.pack(side=tk.RIGHT, padx=2)
-        
-        self.arrow_label = ctk.CTkLabel(self.model_frame, text="→", font=("Segoe UI", 12, "bold"), text_color="#a1a1aa")
-        self.arrow_label.pack(side=tk.RIGHT, padx=4)
-        
-        self.lang_btn = ctk.CTkButton(
-            self.model_frame, text=" ▾", image=self.img_it, compound="left",
-            command=self._show_flag_dropdown, width=64, height=30,
-            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
-            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
-        )
-        self.lang_btn.pack(side=tk.RIGHT, padx=2)
-        
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
         
         self.device_label = ctk.CTkLabel(device_frame, text="Ingresso Audio:", font=("Segoe UI", 11, "bold"), text_color="#fafafa")
         self.device_label.pack(side=tk.LEFT, padx=(0, 8))
+        
+        self.target_lang_btn = ctk.CTkButton(
+            device_frame, text=" ▾", image=self.img_it, compound="left",
+            command=self._show_target_flag_dropdown, width=64, height=30,
+            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
+        )
+        self.target_lang_btn.pack(side=tk.RIGHT, padx=(2, 0))
+        
+        self.arrow_label = ctk.CTkLabel(device_frame, text="→", font=("Segoe UI", 12, "bold"), text_color="#a1a1aa")
+        self.arrow_label.pack(side=tk.RIGHT, padx=4)
+        
+        self.lang_btn = ctk.CTkButton(
+            device_frame, text=" ▾", image=self.img_it, compound="left",
+            command=self._show_flag_dropdown, width=64, height=30,
+            fg_color="#18181b", border_color="#27272a", border_width=1, hover_color="#27272a",
+            text_color="#fafafa", font=("Segoe UI", 11, "bold"), corner_radius=8
+        )
+        self.lang_btn.pack(side=tk.RIGHT, padx=2)
         
         device_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30)
         device_border.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
@@ -480,8 +480,11 @@ class WhisperApp:
                     break
         self.device_combo.set(selected_device)
 
-        status_border = ctk.CTkFrame(device_frame, fg_color="#27272a", corner_radius=8, height=30, width=150)
-        status_border.pack(side=tk.RIGHT, padx=(10, 0))
+        status_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
+        status_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        status_border = ctk.CTkFrame(status_frame, fg_color="#27272a", corner_radius=8, height=30)
+        status_border.pack(fill=tk.X, expand=True)
         status_border.pack_propagate(False)
 
         self.status_label = ctk.CTkLabel(
