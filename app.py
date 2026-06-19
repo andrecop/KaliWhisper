@@ -393,8 +393,9 @@ class WhisperApp:
         self.download_btn = ctk.CTkButton(self.model_frame, text="⬇ Scarica", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.delete_btn = ctk.CTkButton(self.model_frame, text="🗑 Elimina", command=None, font=("Segoe UI", 10, "bold"), width=90)
         self.update_btn = ctk.CTkButton(self.model_frame, text="🔄 Aggiorna", command=None, font=("Segoe UI", 10, "bold"), width=90)
-        
-        
+        self.dest_btn = ctk.CTkButton(self.model_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=100)
+        self.dest_btn.pack(side=tk.RIGHT, padx=2)
+        self._set_btn_state(self.dest_btn, "normal", "secondary")
 
         device_frame = ctk.CTkFrame(main_frame, fg_color="#09090b")
         device_frame.pack(fill=tk.X, pady=(0, 15))
@@ -543,17 +544,12 @@ class WhisperApp:
         
         self.close_btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         self.close_btn_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        self.dest_btn = ctk.CTkButton(self.close_btn_frame, text="📂 Destinazione", command=self._choose_destination, font=("Segoe UI", 10, "bold"), width=250, height=38)
-        self.dest_btn.pack(side=tk.LEFT, padx=(0, 5))
-        self._set_btn_state(self.dest_btn, "normal", "secondary")
-        
         self.save_and_close_btn = ctk.CTkButton(
             self.close_btn_frame, 
             text="💾 Salva tutto e Chiudi al termine", 
             command=self._save_all_and_close_on_finish, 
             font=("Segoe UI", 11, "bold"), 
-            width=250,
+            width=500,
             height=38, 
             fg_color="#18181b", 
             border_color="#27272a", 
@@ -561,7 +557,7 @@ class WhisperApp:
             text_color="#fafafa",
             hover_color="#27272a"
         )
-        self.save_and_close_btn.pack(side=tk.LEFT, padx=(5, 5))
+        self.save_and_close_btn.pack(side=tk.LEFT, padx=(0, 5))
         
         self.ui_lang_btn = ctk.CTkButton(
             self.close_btn_frame, text="UI ▾", image=self.img_it, compound="left",
